@@ -156,7 +156,7 @@ const Analytics = () => {
             <option value="90d">Last 3 months</option>
             <option value="1y">Last year</option>
           </select>
-          <button className="inline-flex items-center rounded-md bg-blue-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-500">
+          <button className="inline-flex items-center rounded-md bg-blue-600 px-3 py-2 text-sm font-semibold text-white  hover:bg-blue-500">
             <CalendarDaysIcon className="h-4 w-4 mr-2" />
             Export Report
           </button>
@@ -165,7 +165,7 @@ const Analytics = () => {
 
       {/* Overview Stats */}
       <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
-        <div className="bg-white overflow-hidden shadow rounded-lg">
+        <div className="bg-white overflow-hidden  rounded-lg">
           <div className="p-5">
             <div className="flex items-center">
               <div className="flex-shrink-0">
@@ -197,7 +197,7 @@ const Analytics = () => {
           </div>
         </div>
 
-        <div className="bg-white overflow-hidden shadow rounded-lg">
+        <div className="bg-white overflow-hidden  rounded-lg">
           <div className="p-5">
             <div className="flex items-center">
               <div className="flex-shrink-0">
@@ -229,7 +229,7 @@ const Analytics = () => {
           </div>
         </div>
 
-        <div className="bg-white overflow-hidden shadow rounded-lg">
+        <div className="bg-white overflow-hidden  rounded-lg">
           <div className="p-5">
             <div className="flex items-center">
               <div className="flex-shrink-0">
@@ -261,7 +261,7 @@ const Analytics = () => {
           </div>
         </div>
 
-        <div className="bg-white overflow-hidden shadow rounded-lg">
+        <div className="bg-white overflow-hidden  rounded-lg">
           <div className="p-5">
             <div className="flex items-center">
               <div className="flex-shrink-0">
@@ -297,7 +297,7 @@ const Analytics = () => {
       {/* Charts Row */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Revenue Trend Chart */}
-        <div className="bg-white p-6 rounded-lg shadow">
+        <div className="bg-white p-6 rounded-lg ">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-lg font-medium text-gray-900">Revenue Trend</h3>
             <div className="flex space-x-2">
@@ -348,7 +348,7 @@ const Analytics = () => {
         </div>
 
         {/* Category Revenue Pie Chart */}
-        <div className="bg-white p-6 rounded-lg shadow">
+        <div className="bg-white p-6 rounded-lg ">
           <h3 className="text-lg font-medium text-gray-900 mb-4">Revenue by Category</h3>
           <ResponsiveContainer width="100%" height={300}>
             <PieChart>
@@ -375,7 +375,7 @@ const Analytics = () => {
       {/* Additional Charts Row */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Top Products Table */}
-        <div className="bg-white shadow rounded-lg">
+        <div className="bg-white  rounded-lg">
           <div className="px-6 py-4 border-b border-gray-200">
             <h3 className="text-lg font-medium text-gray-900">Top Selling Products</h3>
           </div>
@@ -406,7 +406,7 @@ const Analytics = () => {
         </div>
 
         {/* Hourly Orders Chart */}
-        <div className="bg-white p-6 rounded-lg shadow">
+        <div className="bg-white p-6 rounded-lg ">
           <h3 className="text-lg font-medium text-gray-900 mb-4">Orders by Hour</h3>
           <ResponsiveContainer width="100%" height={300}>
             <BarChart data={analytics.hourlyOrders}>
@@ -421,7 +421,7 @@ const Analytics = () => {
       </div>
 
       {/* Key Insights */}
-      <div className="bg-white shadow rounded-lg p-6">
+      <div className="bg-white  rounded-lg p-6">
         <h3 className="text-lg font-medium text-gray-900 mb-4">Key Insights</h3>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <div className="border-l-4 border-green-500 pl-4">

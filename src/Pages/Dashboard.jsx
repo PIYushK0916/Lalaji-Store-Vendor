@@ -221,50 +221,50 @@ const Dashboard = () => {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {/* Header */}
       <div className="sm:flex sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
-          <p className="mt-1 text-sm text-gray-500">
+          <h1 className="text-xl font-bold text-gray-900">Dashboard</h1>
+          <p className="mt-0.5 text-xs text-gray-500">
             Welcome back! Here's what's happening with your store today.
           </p>
         </div>
-        <div className="mt-4 sm:mt-0">
-          <button className="inline-flex items-center rounded-md bg-blue-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-500">
-            <ChartBarIcon className="h-4 w-4 mr-2" />
+        <div className="mt-2 sm:mt-0">
+          <button className="inline-flex items-center rounded-md bg-blue-600 px-2.5 py-1.5 text-xs font-semibold text-white hover:bg-blue-500">
+            <ChartBarIcon className="h-3 w-3 mr-1.5" />
             View Full Analytics
           </button>
         </div>
       </div>
 
       {/* Stats Grid */}
-      <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
         {stats.map((stat) => (
-          <div key={stat.name} className="bg-white overflow-hidden shadow rounded-lg">
-            <div className="p-5">
+          <div key={stat.name} className="bg-white overflow-hidden rounded-lg border border-zinc-200">
+            <div className="p-3">
               <div className="flex items-center">
                 <div className="flex-shrink-0">
-                  <div className={`h-10 w-10 rounded-lg bg-${stat.color}-100 flex items-center justify-center`}>
-                    <stat.icon className={`h-6 w-6 text-${stat.color}-600`} />
+                  <div className={`h-8 w-8 rounded-lg bg-${stat.color}-100 flex items-center justify-center`}>
+                    <stat.icon className={`h-4 w-4 text-${stat.color}-600`} />
                   </div>
                 </div>
-                <div className="ml-5 w-0 flex-1">
+                <div className="ml-3 w-0 flex-1">
                   <dl>
-                    <dt className="text-sm font-medium text-gray-500 truncate">
+                    <dt className="text-xs font-medium text-gray-500 truncate">
                       {stat.name}
                     </dt>
                     <dd className="flex items-baseline">
-                      <div className="text-2xl font-semibold text-gray-900">
+                      <div className="text-lg font-semibold text-gray-900">
                         {stat.value}
                       </div>
-                      <div className={`ml-2 flex items-baseline text-sm font-semibold ${
+                      <div className={`ml-2 flex items-baseline text-xs font-semibold ${
                         stat.changeType === 'increase' ? 'text-green-600' : 'text-red-600'
                       }`}>
                         {stat.changeType === 'increase' ? (
-                          <ArrowUpIcon className="h-4 w-4 mr-1" />
+                          <ArrowUpIcon className="h-3 w-3 mr-0.5" />
                         ) : (
-                          <ArrowDownIcon className="h-4 w-4 mr-1" />
+                          <ArrowDownIcon className="h-3 w-3 mr-0.5" />
                         )}
                         {stat.change}
                       </div>
@@ -278,15 +278,15 @@ const Dashboard = () => {
       </div>
 
       {/* Charts Row */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {/* Revenue Chart */}
-        <div className="bg-white p-6 rounded-lg shadow">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-medium text-gray-900">Weekly Revenue</h3>
-            <div className="flex space-x-2">
+        <div className="bg-white p-4 rounded-lg border border-zinc-200">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-base font-medium text-gray-900">Weekly Revenue</h3>
+            <div className="flex space-x-1">
               <button
                 onClick={() => setActiveTab('revenue')}
-                className={`px-3 py-1 rounded-md text-sm ${
+                className={`px-2 py-1 rounded-md text-xs ${
                   activeTab === 'revenue' ? 'bg-blue-100 text-blue-700' : 'text-gray-500'
                 }`}
               >
@@ -294,7 +294,7 @@ const Dashboard = () => {
               </button>
               <button
                 onClick={() => setActiveTab('orders')}
-                className={`px-3 py-1 rounded-md text-sm ${
+                className={`px-2 py-1 rounded-md text-xs ${
                   activeTab === 'orders' ? 'bg-blue-100 text-blue-700' : 'text-gray-500'
                 }`}
               >
@@ -303,7 +303,7 @@ const Dashboard = () => {
             </div>
           </div>
           {revenueData && revenueData.length > 0 ? (
-            <ResponsiveContainer width="100%" height={300}>
+            <ResponsiveContainer width="100%" height={250}>
               <AreaChart data={revenueData}>
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="name" />
@@ -319,24 +319,24 @@ const Dashboard = () => {
               </AreaChart>
             </ResponsiveContainer>
           ) : (
-            <div className="h-[300px] flex items-center justify-center text-gray-500">
-              <p>No data available for the selected period</p>
+            <div className="h-[250px] flex items-center justify-center text-gray-500">
+              <p className="text-sm">No data available for the selected period</p>
             </div>
           )}
         </div>
 
         {/* Order Status Pie Chart */}
-        <div className="bg-white p-6 rounded-lg shadow">
-          <h3 className="text-lg font-medium text-gray-900 mb-4">Order Status Distribution</h3>
+        <div className="bg-white p-4 rounded-lg border border-zinc-200">
+          <h3 className="text-base font-medium text-gray-900 mb-3">Order Status Distribution</h3>
           {orderStatusData && orderStatusData.length > 0 ? (
-            <ResponsiveContainer width="100%" height={300}>
+            <ResponsiveContainer width="100%" height={250}>
               <PieChart>
                 <Pie
                   data={orderStatusData}
                   cx="50%"
                   cy="50%"
-                  innerRadius={60}
-                  outerRadius={100}
+                  innerRadius={50}
+                  outerRadius={80}
                   paddingAngle={5}
                   dataKey="value"
                 >
@@ -349,35 +349,35 @@ const Dashboard = () => {
               </PieChart>
             </ResponsiveContainer>
           ) : (
-            <div className="h-[300px] flex items-center justify-center text-gray-500">
-              <p>No order data available</p>
+            <div className="h-[250px] flex items-center justify-center text-gray-500">
+              <p className="text-sm">No order data available</p>
             </div>
           )}
         </div>
       </div>
 
       {/* Tables Row */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {/* Top Products */}
-        <div className="bg-white shadow rounded-lg">
-          <div className="px-6 py-4 border-b border-gray-200">
-            <h3 className="text-lg font-medium text-gray-900">Top Products</h3>
+        <div className="bg-white rounded-lg border border-zinc-200">
+          <div className="px-4 py-3 border-b border-gray-200">
+            <h3 className="text-base font-medium text-gray-900">Top Products</h3>
           </div>
           <div className="divide-y divide-gray-200">
             {topProducts.map((product, index) => (
-              <div key={product.name} className="px-6 py-4 flex items-center justify-between">
+              <div key={product.name} className="px-4 py-3 flex items-center justify-between">
                 <div className="flex items-center">
-                  <div className="flex-shrink-0 h-8 w-8 bg-gray-100 rounded-lg flex items-center justify-center">
-                    <span className="text-sm font-medium text-gray-600">{index + 1}</span>
+                  <div className="flex-shrink-0 h-6 w-6 bg-gray-100 rounded-lg flex items-center justify-center">
+                    <span className="text-xs font-medium text-gray-600">{index + 1}</span>
                   </div>
-                  <div className="ml-4">
+                  <div className="ml-3">
                     <p className="text-sm font-medium text-gray-900">{product.name}</p>
-                    <p className="text-sm text-gray-500">{product.sales} sales</p>
+                    <p className="text-xs text-gray-500">{product.sales} sales</p>
                   </div>
                 </div>
                 <div className="text-right">
                   <p className="text-sm font-medium text-gray-900">{product.revenue}</p>
-                  <p className="text-sm text-gray-500">Stock: {product.stock}</p>
+                  <p className="text-xs text-gray-500">Stock: {product.stock}</p>
                 </div>
               </div>
             ))}
@@ -385,38 +385,38 @@ const Dashboard = () => {
         </div>
 
         {/* Recent Orders */}
-        <div className="bg-white shadow rounded-lg">
-          <div className="px-6 py-4 border-b border-gray-200">
-            <h3 className="text-lg font-medium text-gray-900">Recent Orders</h3>
+        <div className="bg-white rounded-lg border border-zinc-200">
+          <div className="px-4 py-3 border-b border-gray-200">
+            <h3 className="text-base font-medium text-gray-900">Recent Orders</h3>
           </div>
           <div className="divide-y divide-gray-200">
             {recentOrders && recentOrders.length > 0 ? recentOrders.map((order) => (
-              <div key={order._id} className="px-6 py-4">
+              <div key={order._id} className="px-4 py-3">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center">
                     {getStatusIcon(order.status)}
-                    <div className="ml-3">
+                    <div className="ml-2">
                       <p className="text-sm font-medium text-gray-900">#{order.orderNumber || order._id?.slice(-6)}</p>
-                      <p className="text-sm text-gray-500">{order.customer?.name || 'Customer'}</p>
+                      <p className="text-xs text-gray-500">{order.customer?.name || 'Customer'}</p>
                     </div>
                   </div>
                   <div className="text-right">
                     <p className="text-sm font-medium text-gray-900">{formatCurrency(order.pricing?.total || 0)}</p>
-                    <p className="text-sm text-gray-500">{order.items?.length || 0} items</p>
+                    <p className="text-xs text-gray-500">{order.items?.length || 0} items</p>
                   </div>
                 </div>
-                <div className="mt-2 flex items-center justify-between">
+                <div className="mt-1.5 flex items-center justify-between">
                   {getStatusBadge(order.status)}
                   <span className="text-xs text-gray-500">{formatTimeAgo(order.createdAt)}</span>
                 </div>
               </div>
             )) : (
-              <div className="px-6 py-8 text-center">
+              <div className="px-4 py-6 text-center">
                 <p className="text-sm text-gray-500">No recent orders</p>
               </div>
             )}
           </div>
-          <div className="px-6 py-3 border-t border-gray-200">
+          <div className="px-4 py-2 border-t border-gray-200">
             <button className="text-sm text-blue-600 hover:text-blue-500 font-medium">
               View all orders →
             </button>

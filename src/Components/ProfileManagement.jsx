@@ -260,7 +260,7 @@ const ProfileManagement = () => {
         <div className="mt-4 sm:mt-0">
           <button
             onClick={() => setShowPasswordModal(true)}
-            className="inline-flex items-center rounded-md bg-blue-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-500"
+            className="inline-flex items-center rounded-md bg-blue-600 px-3 py-2 text-sm font-semibold text-white  hover:bg-blue-500"
           >
             Change Password
           </button>
@@ -268,7 +268,7 @@ const ProfileManagement = () => {
       </div>
 
       {/* Profile Overview Card */}
-      <div className="bg-white shadow rounded-lg p-6">
+      <div className="bg-white  rounded-lg p-6">
         <div className="flex items-center space-x-6">
           <div className="relative">
             <div className="h-24 w-24 rounded-full bg-gray-100 flex items-center justify-center overflow-hidden">
@@ -315,7 +315,7 @@ const ProfileManagement = () => {
       </div>
 
       {/* Verification Status */}
-      <div className="bg-white shadow rounded-lg p-6">
+      <div className="bg-white  rounded-lg p-6">
         <h3 className="text-lg font-medium text-gray-900 mb-4">Verification Status</h3>
         <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
           <div className="flex items-center justify-between p-3 border rounded-lg">
@@ -357,7 +357,7 @@ const ProfileManagement = () => {
       </div>
 
       {/* Tabs */}
-      <div className="bg-white shadow rounded-lg">
+      <div className="bg-white  rounded-lg">
         <div className="border-b border-gray-200">
           <nav className="-mb-px flex space-x-8 px-6">
             <button
@@ -414,7 +414,7 @@ const ProfileManagement = () => {
                     type="text"
                     value={formData.name}
                     onChange={(e) => setFormData({...formData, name: e.target.value})}
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                    className="mt-1 block w-full rounded-md border-gray-300  focus:border-blue-500 focus:ring-blue-500"
                   />
                 </div>
                 <div>
@@ -423,7 +423,7 @@ const ProfileManagement = () => {
                     type="email"
                     value={formData.email}
                     onChange={(e) => setFormData({...formData, email: e.target.value})}
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                    className="mt-1 block w-full rounded-md border-gray-300  focus:border-blue-500 focus:ring-blue-500"
                   />
                 </div>
                 <div>
@@ -432,7 +432,7 @@ const ProfileManagement = () => {
                     type="tel"
                     value={formData.phone}
                     onChange={(e) => setFormData({...formData, phone: e.target.value})}
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                    className="mt-1 block w-full rounded-md border-gray-300  focus:border-blue-500 focus:ring-blue-500"
                   />
                 </div>
                 <div>
@@ -441,7 +441,7 @@ const ProfileManagement = () => {
                     type="tel"
                     value={formData.alternatePhone}
                     onChange={(e) => setFormData({...formData, alternatePhone: e.target.value})}
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                    className="mt-1 block w-full rounded-md border-gray-300  focus:border-blue-500 focus:ring-blue-500"
                   />
                 </div>
               </div>
@@ -452,7 +452,7 @@ const ProfileManagement = () => {
                   rows={3}
                   value={formData.address}
                   onChange={(e) => setFormData({...formData, address: e.target.value})}
-                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                  className="mt-1 block w-full rounded-md border-gray-300  focus:border-blue-500 focus:ring-blue-500"
                 />
               </div>
               
@@ -463,7 +463,7 @@ const ProfileManagement = () => {
                     type="text"
                     value={formData.city}
                     onChange={(e) => setFormData({...formData, city: e.target.value})}
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                    className="mt-1 block w-full rounded-md border-gray-300  focus:border-blue-500 focus:ring-blue-500"
                   />
                 </div>
                 <div>
@@ -471,7 +471,7 @@ const ProfileManagement = () => {
                   <select
                     value={formData.state}
                     onChange={(e) => setFormData({...formData, state: e.target.value})}
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                    className="mt-1 block w-full rounded-md border-gray-300  focus:border-blue-500 focus:ring-blue-500"
                   >
                     <option value="">Select State</option>
                     {states.map(state => (
@@ -485,7 +485,7 @@ const ProfileManagement = () => {
                     type="text"
                     value={formData.pincode}
                     onChange={(e) => setFormData({...formData, pincode: e.target.value})}
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                    className="mt-1 block w-full rounded-md border-gray-300  focus:border-blue-500 focus:ring-blue-500"
                   />
                 </div>
               </div>
@@ -502,7 +502,7 @@ const ProfileManagement = () => {
                     type="text"
                     value={formData.businessName}
                     onChange={(e) => setFormData({...formData, businessName: e.target.value})}
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                    className="mt-1 block w-full rounded-md border-gray-300  focus:border-blue-500 focus:ring-blue-500"
                   />
                 </div>
                 <div>
@@ -510,7 +510,7 @@ const ProfileManagement = () => {
                   <select
                     value={formData.businessType}
                     onChange={(e) => setFormData({...formData, businessType: e.target.value})}
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                    className="mt-1 block w-full rounded-md border-gray-300  focus:border-blue-500 focus:ring-blue-500"
                   >
                     <option value="">Select Business Type</option>
                     {businessTypes.map(type => (
@@ -524,7 +524,7 @@ const ProfileManagement = () => {
                     type="text"
                     value={formData.gstNumber}
                     onChange={(e) => setFormData({...formData, gstNumber: e.target.value})}
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                    className="mt-1 block w-full rounded-md border-gray-300  focus:border-blue-500 focus:ring-blue-500"
                     placeholder="29ABCDE1234F1Z5"
                   />
                 </div>
@@ -534,7 +534,7 @@ const ProfileManagement = () => {
                     type="text"
                     value={formData.panNumber}
                     onChange={(e) => setFormData({...formData, panNumber: e.target.value})}
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                    className="mt-1 block w-full rounded-md border-gray-300  focus:border-blue-500 focus:ring-blue-500"
                     placeholder="ABCDE1234F"
                   />
                 </div>
@@ -552,7 +552,7 @@ const ProfileManagement = () => {
                     type="text"
                     value={formData.bankName}
                     onChange={(e) => setFormData({...formData, bankName: e.target.value})}
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                    className="mt-1 block w-full rounded-md border-gray-300  focus:border-blue-500 focus:ring-blue-500"
                   />
                 </div>
                 <div>
@@ -561,7 +561,7 @@ const ProfileManagement = () => {
                     type="text"
                     value={formData.accountHolderName}
                     onChange={(e) => setFormData({...formData, accountHolderName: e.target.value})}
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                    className="mt-1 block w-full rounded-md border-gray-300  focus:border-blue-500 focus:ring-blue-500"
                   />
                 </div>
                 <div>
@@ -570,7 +570,7 @@ const ProfileManagement = () => {
                     type="text"
                     value={formData.accountNumber}
                     onChange={(e) => setFormData({...formData, accountNumber: e.target.value})}
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                    className="mt-1 block w-full rounded-md border-gray-300  focus:border-blue-500 focus:ring-blue-500"
                   />
                 </div>
                 <div>
@@ -579,7 +579,7 @@ const ProfileManagement = () => {
                     type="text"
                     value={formData.ifscCode}
                     onChange={(e) => setFormData({...formData, ifscCode: e.target.value})}
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                    className="mt-1 block w-full rounded-md border-gray-300  focus:border-blue-500 focus:ring-blue-500"
                     placeholder="SBIN0001234"
                   />
                 </div>
@@ -632,13 +632,13 @@ const ProfileManagement = () => {
           <div className="flex justify-end space-x-3 pt-6">
             <button
               type="button"
-              className="rounded-md border border-gray-300 bg-white py-2 px-4 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50"
+              className="rounded-md border border-gray-300 bg-white py-2 px-4 text-sm font-medium text-gray-700  hover:bg-gray-50"
             >
               Cancel
             </button>
             <button
               type="submit"
-              className="rounded-md border border-transparent bg-blue-600 py-2 px-4 text-sm font-medium text-white shadow-sm hover:bg-blue-700"
+              className="rounded-md border border-transparent bg-blue-600 py-2 px-4 text-sm font-medium text-white  hover:bg-blue-700"
             >
               Save Changes
             </button>
@@ -652,7 +652,7 @@ const ProfileManagement = () => {
           <div className="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
             <div className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" onClick={() => setShowPasswordModal(false)}></div>
             
-            <div className="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
+            <div className="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden  transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
               <form onSubmit={handlePasswordChange}>
                 <div className="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
                   <h3 className="text-lg font-medium text-gray-900 mb-4">Change Password</h3>
@@ -665,7 +665,7 @@ const ProfileManagement = () => {
                           type={showPassword.current ? 'text' : 'password'}
                           value={passwordData.currentPassword}
                           onChange={(e) => setPasswordData({...passwordData, currentPassword: e.target.value})}
-                          className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 pr-10"
+                          className="block w-full rounded-md border-gray-300  focus:border-blue-500 focus:ring-blue-500 pr-10"
                         />
                         <button
                           type="button"
@@ -688,7 +688,7 @@ const ProfileManagement = () => {
                           type={showPassword.new ? 'text' : 'password'}
                           value={passwordData.newPassword}
                           onChange={(e) => setPasswordData({...passwordData, newPassword: e.target.value})}
-                          className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 pr-10"
+                          className="block w-full rounded-md border-gray-300  focus:border-blue-500 focus:ring-blue-500 pr-10"
                         />
                         <button
                           type="button"
@@ -711,7 +711,7 @@ const ProfileManagement = () => {
                           type={showPassword.confirm ? 'text' : 'password'}
                           value={passwordData.confirmPassword}
                           onChange={(e) => setPasswordData({...passwordData, confirmPassword: e.target.value})}
-                          className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 pr-10"
+                          className="block w-full rounded-md border-gray-300  focus:border-blue-500 focus:ring-blue-500 pr-10"
                         />
                         <button
                           type="button"
@@ -732,14 +732,14 @@ const ProfileManagement = () => {
                 <div className="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
                   <button
                     type="submit"
-                    className="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-blue-600 text-base font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:ml-3 sm:w-auto sm:text-sm"
+                    className="w-full inline-flex justify-center rounded-md border border-transparent  px-4 py-2 bg-blue-600 text-base font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:ml-3 sm:w-auto sm:text-sm"
                   >
                     Update Password
                   </button>
                   <button
                     type="button"
                     onClick={() => setShowPasswordModal(false)}
-                    className="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm"
+                    className="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300  px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm"
                   >
                     Cancel
                   </button>

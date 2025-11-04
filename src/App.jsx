@@ -115,7 +115,7 @@ const VendorLayout = ({ children }) => {
             className="fixed inset-0 bg-black bg-opacity-25"
             onClick={() => setSidebarOpen(false)}
           />
-          <div className="fixed inset-y-0 left-0 z-50 w-80 shadow-xl">
+          <div className="fixed inset-y-0 left-0 z-50 w-80 ">
             <SidebarContent
               navigation={navigation}
               onClose={() => setSidebarOpen(false)}
@@ -218,7 +218,7 @@ const VendorLayout = ({ children }) => {
 // Sidebar component
 const SidebarContent = ({ navigation, onClose, isActive, handleLogout, collapsed, onToggleCollapse, isMobile }) => {
   return (
-    <div className="flex h-full flex-col gap-y-5 overflow-y-auto bg-white shadow-sm">
+    <div className="flex h-full flex-col gap-y-5 overflow-y-auto bg-white ">
       <div className="flex h-12 shrink-0 items-center justify-between px-4">
         {!collapsed && (
           <div className="flex items-center gap-x-2">
