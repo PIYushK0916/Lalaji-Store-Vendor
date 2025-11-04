@@ -45,6 +45,25 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
+/* Ensure Gilroy is used in inputs and buttons */
+input, button, select, textarea {
+  font-family: 'Gilroy', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+}
+
+/* Custom sidebar text rendering */
+.sidebar-text {
+  font-family: 'Gilroy', sans-serif;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+}
+
+/* Prevent text overflow in sidebar */
+.sidebar-item {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 /* Custom animations for modals */
 @keyframes fadeIn {
   from {

@@ -30,25 +30,32 @@ import {
   BarChart,
   Bar
 } from 'recharts';
-import { getDashboardData, getVendorStats } from '../utils/api';
+import { dashboardService } from '../utils/dashboard';
 
 const Dashboard = () => {
   const [dashboardData, setDashboardData] = useState(null);
-  const [vendorStats, setVendorStats] = useState(null);
+  const [analyticsData, setAnalyticsData] = useState(null);
+  const [recentOrders, setRecentOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [activeTab, setActiveTab] = useState('overview');
+  const [activeTab, setActiveTab] = useState('revenue');
 
   useEffect(() => {
     const fetchDashboardData = async () => {
       try {
         setLoading(true);
-        const [dashData, statsData] = await Promise.all([
-          getDashboardData(),
-          getVendorStats()
+        setError(null);
+        
+        // Fetch dashboard data, analytics, and recent orders
+        const [dashData, analyticsResponse, ordersResponse] = await Promise.all([
+          dashboardService.getDashboardData(),
+          dashboardService.getAnalytics(7), // Get 7 days analytics for charts
+          dashboardService.getVendorOrders({ limit: 5, sort: '-createdAt' }) // Get recent 5 orders
         ]);
-        setDashboardData(dashData);
-        setVendorStats(statsData);
+        
+        setDashboardData(dashData.data);
+        setAnalyticsData(analyticsResponse.data);
+        setRecentOrders(ordersResponse.data?.orders || []);
       } catch (err) {
         setError(err.message);
         console.error('Dashboard data fetch error:', err);
@@ -76,107 +83,120 @@ const Dashboard = () => {
     );
   }
 
-  // Mock data for demonstration
-  const stats = [
+  // Format currency
+  const formatCurrency = (amount) => {
+    return new Intl.NumberFormat('en-IN', {
+      style: 'currency',
+      currency: 'INR',
+      minimumFractionDigits: 0,
+    }).format(amount || 0);
+  };
+
+  // Format time ago
+  const formatTimeAgo = (dateString) => {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffInMs = now - date;
+    const diffInMins = Math.floor(diffInMs / (1000 * 60));
+    const diffInHours = Math.floor(diffInMs / (1000 * 60 * 60));
+    const diffInDays = Math.floor(diffInMs / (1000 * 60 * 60 * 24));
+
+    if (diffInMins < 60) {
+      return `${diffInMins} mins ago`;
+    } else if (diffInHours < 24) {
+      return `${diffInHours} hours ago`;
+    } else {
+      return `${diffInDays} days ago`;
+    }
+  };
+
+  // Calculate percentage change (mock calculation for now)
+  const calculateChange = (current, previous) => {
+    if (!previous || previous === 0) return '+0%';
+    const change = ((current - previous) / previous) * 100;
+    return `${change > 0 ? '+' : ''}${change.toFixed(1)}%`;
+  };
+
+  // Build stats from API data
+  const stats = dashboardData ? [
     {
       name: 'Total Products',
-      value: '156',
-      change: '+12%',
-      changeType: 'increase',
+      value: dashboardData.stats?.totalProducts?.toString() || '0',
+      change: dashboardData.stats?.activeProducts ? 
+        `${dashboardData.stats.activeProducts} active` : '0 active',
+      changeType: 'neutral',
       icon: CubeIcon,
       color: 'blue'
     },
     {
-      name: 'Active Orders',
-      value: '23',
-      change: '+5',
-      changeType: 'increase',
+      name: 'Today Orders',
+      value: dashboardData.stats?.todayOrders?.toString() || '0',
+      change: dashboardData.stats?.pendingOrders ? 
+        `${dashboardData.stats.pendingOrders} pending` : '0 pending',
+      changeType: dashboardData.stats?.todayOrders > 0 ? 'increase' : 'neutral',
       icon: ShoppingCartIcon,
       color: 'green'
     },
     {
-      name: 'Revenue Today',
-      value: '₹8,540',
-      change: '+18%',
-      changeType: 'increase',
+      name: 'Today Revenue',
+      value: formatCurrency(dashboardData.stats?.todayRevenue || 0),
+      change: '+Today',
+      changeType: dashboardData.stats?.todayRevenue > 0 ? 'increase' : 'neutral',
       icon: CurrencyRupeeIcon,
       color: 'purple'
     },
     {
-      name: 'Wallet Balance',
-      value: '₹12,450',
-      change: '-2%',
-      changeType: 'decrease',
-      icon: WalletIcon,
+      name: 'Low Stock Alert',
+      value: dashboardData.stats?.lowStockProducts?.toString() || '0',
+      change: 'Products',
+      changeType: dashboardData.stats?.lowStockProducts > 0 ? 'decrease' : 'neutral',
+      icon: ExclamationTriangleIcon,
       color: 'orange'
     }
-  ];
+  ] : [];
 
-  const revenueData = [
-    { name: 'Mon', revenue: 4000, orders: 24 },
-    { name: 'Tue', revenue: 3000, orders: 18 },
-    { name: 'Wed', revenue: 5000, orders: 32 },
-    { name: 'Thu', revenue: 4500, orders: 28 },
-    { name: 'Fri', revenue: 6000, orders: 40 },
-    { name: 'Sat', revenue: 7000, orders: 45 },
-    { name: 'Sun', revenue: 5500, orders: 35 }
-  ];
+  // Build charts data from analytics
+  const revenueData = analyticsData?.salesData?.map(item => ({
+    name: new Date(item._id.date).toLocaleDateString('en-US', { weekday: 'short' }),
+    revenue: item.revenue || 0,
+    orders: item.orders || 0,
+    date: item._id.date
+  })) || [];
 
-  const orderStatusData = [
-    { name: 'Completed', value: 45, color: '#10B981' },
-    { name: 'Processing', value: 30, color: '#3B82F6' },
-    { name: 'Pending', value: 15, color: '#F59E0B' },
-    { name: 'Cancelled', value: 10, color: '#EF4444' }
-  ];
+  // Top products from API data
+  const topProducts = dashboardData?.topProducts?.map(product => ({
+    name: product.name,
+    sales: product.analytics?.totalSold || 0,
+    revenue: formatCurrency(product.analytics?.totalRevenue || 0),
+    stock: product.inventory?.stock || 0
+  })) || [];
 
-  const topProducts = [
-    { name: 'Organic Apples', sales: 145, revenue: '₹2,890', stock: 89 },
-    { name: 'Fresh Bananas', sales: 132, revenue: '₹1,980', stock: 156 },
-    { name: 'Organic Milk', sales: 98, revenue: '₹1,470', stock: 45 },
-    { name: 'Brown Bread', sales: 87, revenue: '₹1,218', stock: 78 },
-    { name: 'Free Range Eggs', sales: 76, revenue: '₹1,140', stock: 234 }
-  ];
-
-  const recentOrders = [
-    {
-      id: 'ORD-001',
-      customer: 'Rajesh Kumar',
-      items: 3,
-      amount: '₹450',
-      status: 'processing',
-      time: '10 mins ago'
+  // Order status distribution (derived from dashboard stats)
+  const orderStatusData = dashboardData ? [
+    { 
+      name: 'Completed', 
+      value: Math.max(0, (dashboardData.stats?.totalOrders || 0) - (dashboardData.stats?.pendingOrders || 0) - (dashboardData.stats?.todayOrders || 0)), 
+      color: '#10B981' 
     },
-    {
-      id: 'ORD-002',
-      customer: 'Priya Sharma',
-      items: 5,
-      amount: '₹780',
-      status: 'completed',
-      time: '25 mins ago'
+    { 
+      name: 'Processing', 
+      value: dashboardData.stats?.todayOrders || 0, 
+      color: '#3B82F6' 
     },
-    {
-      id: 'ORD-003',
-      customer: 'Amit Singh',
-      items: 2,
-      amount: '₹320',
-      status: 'pending',
-      time: '1 hour ago'
-    },
-    {
-      id: 'ORD-004',
-      customer: 'Sunita Devi',
-      items: 4,
-      amount: '₹650',
-      status: 'processing',
-      time: '2 hours ago'
+    { 
+      name: 'Pending', 
+      value: dashboardData.stats?.pendingOrders || 0, 
+      color: '#F59E0B' 
     }
-  ];
-
+  ].filter(item => item.value > 0) : [];
+  // Helper functions for order status
   const getStatusIcon = (status) => {
     switch (status) {
       case 'completed':
+      case 'delivered':
         return <CheckCircleIcon className="h-5 w-5 text-green-500" />;
       case 'processing':
+      case 'confirmed':
         return <ClockIcon className="h-5 w-5 text-blue-500" />;
       case 'pending':
         return <ExclamationTriangleIcon className="h-5 w-5 text-yellow-500" />;
@@ -282,45 +302,57 @@ const Dashboard = () => {
               </button>
             </div>
           </div>
-          <ResponsiveContainer width="100%" height={300}>
-            <AreaChart data={revenueData}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="name" />
-              <YAxis />
-              <Tooltip />
-              <Area 
-                type="monotone" 
-                dataKey={activeTab === 'revenue' ? 'revenue' : 'orders'} 
-                stroke="#3B82F6" 
-                fill="#3B82F6" 
-                fillOpacity={0.1} 
-              />
-            </AreaChart>
-          </ResponsiveContainer>
+          {revenueData && revenueData.length > 0 ? (
+            <ResponsiveContainer width="100%" height={300}>
+              <AreaChart data={revenueData}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="name" />
+                <YAxis />
+                <Tooltip />
+                <Area 
+                  type="monotone" 
+                  dataKey={activeTab === 'revenue' ? 'revenue' : 'orders'} 
+                  stroke="#3B82F6" 
+                  fill="#3B82F6" 
+                  fillOpacity={0.1} 
+                />
+              </AreaChart>
+            </ResponsiveContainer>
+          ) : (
+            <div className="h-[300px] flex items-center justify-center text-gray-500">
+              <p>No data available for the selected period</p>
+            </div>
+          )}
         </div>
 
         {/* Order Status Pie Chart */}
         <div className="bg-white p-6 rounded-lg shadow">
           <h3 className="text-lg font-medium text-gray-900 mb-4">Order Status Distribution</h3>
-          <ResponsiveContainer width="100%" height={300}>
-            <PieChart>
-              <Pie
-                data={orderStatusData}
-                cx="50%"
-                cy="50%"
-                innerRadius={60}
-                outerRadius={100}
-                paddingAngle={5}
-                dataKey="value"
-              >
-                {orderStatusData.map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={entry.color} />
-                ))}
-              </Pie>
-              <Tooltip />
-              <Legend />
-            </PieChart>
-          </ResponsiveContainer>
+          {orderStatusData && orderStatusData.length > 0 ? (
+            <ResponsiveContainer width="100%" height={300}>
+              <PieChart>
+                <Pie
+                  data={orderStatusData}
+                  cx="50%"
+                  cy="50%"
+                  innerRadius={60}
+                  outerRadius={100}
+                  paddingAngle={5}
+                  dataKey="value"
+                >
+                  {orderStatusData.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={entry.color} />
+                  ))}
+                </Pie>
+                <Tooltip />
+                <Legend />
+              </PieChart>
+            </ResponsiveContainer>
+          ) : (
+            <div className="h-[300px] flex items-center justify-center text-gray-500">
+              <p>No order data available</p>
+            </div>
+          )}
         </div>
       </div>
 
@@ -358,27 +390,31 @@ const Dashboard = () => {
             <h3 className="text-lg font-medium text-gray-900">Recent Orders</h3>
           </div>
           <div className="divide-y divide-gray-200">
-            {recentOrders.map((order) => (
-              <div key={order.id} className="px-6 py-4">
+            {recentOrders && recentOrders.length > 0 ? recentOrders.map((order) => (
+              <div key={order._id} className="px-6 py-4">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center">
                     {getStatusIcon(order.status)}
                     <div className="ml-3">
-                      <p className="text-sm font-medium text-gray-900">{order.id}</p>
-                      <p className="text-sm text-gray-500">{order.customer}</p>
+                      <p className="text-sm font-medium text-gray-900">#{order.orderNumber || order._id?.slice(-6)}</p>
+                      <p className="text-sm text-gray-500">{order.customer?.name || 'Customer'}</p>
                     </div>
                   </div>
                   <div className="text-right">
-                    <p className="text-sm font-medium text-gray-900">{order.amount}</p>
-                    <p className="text-sm text-gray-500">{order.items} items</p>
+                    <p className="text-sm font-medium text-gray-900">{formatCurrency(order.pricing?.total || 0)}</p>
+                    <p className="text-sm text-gray-500">{order.items?.length || 0} items</p>
                   </div>
                 </div>
                 <div className="mt-2 flex items-center justify-between">
                   {getStatusBadge(order.status)}
-                  <span className="text-xs text-gray-500">{order.time}</span>
+                  <span className="text-xs text-gray-500">{formatTimeAgo(order.createdAt)}</span>
                 </div>
               </div>
-            ))}
+            )) : (
+              <div className="px-6 py-8 text-center">
+                <p className="text-sm text-gray-500">No recent orders</p>
+              </div>
+            )}
           </div>
           <div className="px-6 py-3 border-t border-gray-200">
             <button className="text-sm text-blue-600 hover:text-blue-500 font-medium">

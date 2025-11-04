@@ -115,7 +115,7 @@ const VendorLayout = ({ children }) => {
             className="fixed inset-0 bg-black bg-opacity-25"
             onClick={() => setSidebarOpen(false)}
           />
-          <div className="fixed inset-y-0 left-0 z-50 w-72 shadow-xl">
+          <div className="fixed inset-y-0 left-0 z-50 w-80 shadow-xl">
             <SidebarContent
               navigation={navigation}
               onClose={() => setSidebarOpen(false)}
@@ -130,7 +130,7 @@ const VendorLayout = ({ children }) => {
 
       {/* Desktop sidebar */}
       <div className={`hidden lg:flex lg:flex-col lg:fixed lg:inset-y-0 transition-all duration-300 ${
-        sidebarCollapsed ? 'lg:w-16' : 'lg:w-56'
+        sidebarCollapsed ? 'lg:w-16' : 'lg:w-64'
       }`}>
         <SidebarContent
           navigation={navigation}
@@ -144,7 +144,7 @@ const VendorLayout = ({ children }) => {
 
       {/* Main content */}
       <div className={`flex-1 transition-all duration-300 ${
-        sidebarCollapsed ? 'lg:pl-16' : 'lg:pl-56'
+        sidebarCollapsed ? 'lg:pl-16' : 'lg:pl-64'
       }`}>
         {/* Top header */}
         <header className="sticky top-0 z-30 bg-white border-b border-gray-200">
@@ -166,7 +166,7 @@ const VendorLayout = ({ children }) => {
                 <input
                   type="text"
                   placeholder="Search..."
-                  className="block w-full rounded-lg border-0 py-1.5 pl-10 pr-3 text-gray-900 ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-blue-600 sm:text-sm sm:leading-6"
+                  className="block w-full rounded-lg border-0 py-1.5 pl-10 pr-3 text-gray-900 ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-blue-600 sm:text-sm sm:leading-6 font-['Gilroy']"
                 />
               </div>
 
@@ -191,10 +191,10 @@ const VendorLayout = ({ children }) => {
                     </span>
                   </div>
                   <div className="hidden lg:block">
-                    <p className="text-sm font-medium text-gray-900">
+                    <p className="text-sm font-medium text-gray-900 font-['Gilroy']">
                       {user?.name || 'Vendor Name'}
                     </p>
-                    <p className="text-xs text-gray-500">
+                    <p className="text-xs text-gray-500 font-['Gilroy']">
                       {user?.email || 'vendor@example.com'}
                     </p>
                   </div>
@@ -218,20 +218,25 @@ const VendorLayout = ({ children }) => {
 // Sidebar component
 const SidebarContent = ({ navigation, onClose, isActive, handleLogout, collapsed, onToggleCollapse, isMobile }) => {
   return (
-    <div className="flex grow flex-col gap-y-5 overflow-y-auto bg-white px-6 pb-4 shadow-sm">
-      <div className="flex h-16 shrink-0 items-center justify-between">
+    <div className="flex h-full flex-col gap-y-5 overflow-y-auto bg-white shadow-sm">
+      <div className="flex h-16 shrink-0 items-center justify-between px-6">
         {!collapsed && (
           <div className="flex items-center gap-x-3">
             <div className="h-8 w-8 rounded-lg bg-blue-600 flex items-center justify-center">
               <BuildingStorefrontIcon className="h-5 w-5 text-white" />
             </div>
-            <span className="text-xl font-bold text-gray-900">Vendor Portal</span>
+            <span className="text-xl font-semibold text-gray-900 font-['Gilroy']">Vendor Portal</span>
+          </div>
+        )}
+        {collapsed && !isMobile && (
+          <div className="h-8 w-8 rounded-lg bg-blue-600 flex items-center justify-center">
+            <BuildingStorefrontIcon className="h-5 w-5 text-white" />
           </div>
         )}
         {isMobile && (
           <button
             type="button"
-            className="-m-2.5 p-2.5 text-gray-700"
+            className="-m-2.5 p-2.5 text-gray-700 hover:text-gray-900"
             onClick={onClose}
           >
             <XMarkIcon className="h-6 w-6" />
@@ -248,12 +253,12 @@ const SidebarContent = ({ navigation, onClose, isActive, handleLogout, collapsed
         )}
       </div>
 
-      <nav className="flex flex-1 flex-col">
+      <nav className="flex flex-1 flex-col px-6 pb-4">
         <ul role="list" className="flex flex-1 flex-col gap-y-7">
           {navigation.map((section, sectionIdx) => (
             <li key={sectionIdx}>
               {!collapsed && (
-                <div className="text-xs font-semibold leading-6 text-gray-400 mb-3">
+                <div className="text-xs font-semibold leading-6 text-gray-400 mb-3 font-['Gilroy'] tracking-wide">
                   {section.section}
                 </div>
               )}
@@ -263,18 +268,21 @@ const SidebarContent = ({ navigation, onClose, isActive, handleLogout, collapsed
                     <Link
                       to={item.href}
                       onClick={isMobile ? onClose : undefined}
-                      className={`group flex gap-x-3 rounded-md p-2 text-sm leading-6 font-semibold transition-colors duration-200 ${
+                      className={`group flex gap-x-3 rounded-md p-3 text-sm leading-6 font-medium transition-all duration-200 font-['Gilroy'] ${
                         isActive(item.href)
-                          ? 'bg-blue-50 text-blue-700'
+                          ? 'bg-blue-50 text-blue-700 border-r-2 border-blue-700'
                           : 'text-gray-700 hover:text-blue-700 hover:bg-gray-50'
                       }`}
+                      title={collapsed ? item.name : undefined}
                     >
                       <item.icon
                         className={`h-6 w-6 shrink-0 transition-colors duration-200 ${
                           isActive(item.href) ? 'text-blue-700' : 'text-gray-400 group-hover:text-blue-700'
                         }`}
                       />
-                      {!collapsed && item.name}
+                      {!collapsed && (
+                        <span className="truncate">{item.name}</span>
+                      )}
                     </Link>
                   </li>
                 ))}
@@ -286,10 +294,13 @@ const SidebarContent = ({ navigation, onClose, isActive, handleLogout, collapsed
           <li className="mt-auto">
             <button
               onClick={handleLogout}
-              className={`group flex w-full gap-x-3 rounded-md p-2 text-sm leading-6 font-semibold text-gray-700 hover:text-red-700 hover:bg-red-50 transition-colors duration-200`}
+              className={`group flex w-full gap-x-3 rounded-md p-3 text-sm leading-6 font-medium text-gray-700 hover:text-red-700 hover:bg-red-50 transition-all duration-200 font-['Gilroy']`}
+              title={collapsed ? 'Sign out' : undefined}
             >
               <ArrowRightOnRectangleIcon className="h-6 w-6 shrink-0 text-gray-400 group-hover:text-red-700 transition-colors duration-200" />
-              {!collapsed && 'Sign out'}
+              {!collapsed && (
+                <span className="truncate">Sign out</span>
+              )}
             </button>
           </li>
         </ul>
