@@ -11,12 +11,14 @@ import {
   AdjustmentsHorizontalIcon,
   ArchiveBoxIcon
 } from '@heroicons/react/24/outline';
-import { getInventory, updateStock, addStockMovement } from '../utils/api';
+import { getVendorProducts, updateVendorProductStock } from '../utils/api';
 
 const InventoryManagement = () => {
   const [inventory, setInventory] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState(null);
+  const [successMessage, setSuccessMessage] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterCategory, setFilterCategory] = useState('all');
   const [filterStock, setFilterStock] = useState('all');
@@ -28,16 +30,8 @@ const InventoryManagement = () => {
     reason: ''
   });
 
-  const categories = [
-    'Fruits & Vegetables',
-    'Dairy Products',
-    'Bakery',
-    'Meat & Seafood',
-    'Beverages',
-    'Snacks',
-    'Personal Care',
-    'Household'
-  ];
+  // Get unique categories from inventory
+  const categories = [...new Set(inventory.map(item => item.category).filter(Boolean))];
 
   const stockReasons = {
     add: [
@@ -60,113 +54,124 @@ const InventoryManagement = () => {
     fetchInventory();
   }, []);
 
-  const fetchInventory = async () => {
+  const fetchInventory = async (isRefresh = false) => {
     try {
-      setLoading(true);
-      const data = await getInventory();
-      setInventory(data || []);
+      if (isRefresh) {
+        setRefreshing(true);
+      } else {
+        setLoading(true);
+      }
+      setError(null);
+      const response = await getVendorProducts();
+      console.log('Vendor Products Response:', response);
+      
+      // Handle both response formats: direct array or response.data
+      const productsData = Array.isArray(response) ? response : (response.success && response.data ? response.data : []);
+      
+      if (productsData && productsData.length > 0) {
+        // Transform vendor products to inventory format
+        const inventoryData = productsData.map(vp => {
+          const product = vp.product;
+          const currentStock = vp.inventory?.stock || 0;
+          const minThreshold = vp.inventory?.lowStockThreshold || 10;
+          
+          // Get primary image
+          const primaryImage = product.images?.find(img => img.isPrimary)?.url || 
+                              product.images?.[0]?.url || '';
+          
+          // Calculate unit price from analytics or product pricing
+          const unitPrice = vp.pricing?.sellingPrice || 
+                           product.pricing?.sellingPrice || 
+                           (vp.analytics?.totalRevenue && vp.analytics?.totalSold ? 
+                             Math.round(vp.analytics.totalRevenue / vp.analytics.totalSold) : 0);
+          
+          // Format weight display
+          const weightDisplay = product.weight?.value && product.weight?.unit 
+            ? `${product.weight.value}${product.weight.unit}`
+            : (product.weight && product.unit ? `${product.weight}${product.unit}` : '');
+          
+          return {
+            id: vp._id,
+            vendorProductId: vp._id,
+            productId: product._id,
+            name: product.name || 'Unknown Product',
+            sku: product.sku || 'N/A',
+            category: product.category?.name || product.category || 'Uncategorized',
+            subcategory: product.subcategory?.name || product.subcategory || '',
+            brand: product.brand || 'N/A',
+            currentStock: currentStock,
+            minThreshold: minThreshold,
+            maxCapacity: vp.inventory?.maxCapacity || 500,
+            unitPrice: unitPrice,
+            totalValue: currentStock * unitPrice,
+            lastRestocked: vp.inventory?.lastRestocked || vp.updatedAt || vp.createdAt,
+            status: vp.status === 'out_of_stock' ? 'out_of_stock' : 
+                   (currentStock === 0 ? 'out_of_stock' :
+                   currentStock <= minThreshold ? 'low_stock' : 'in_stock'),
+            location: vp.inventory?.location || 'Warehouse',
+            supplier: product.supplier || product.brand || 'N/A',
+            image: primaryImage,
+            weight: product.weight?.value || product.weight || 0,
+            unit: product.weight?.unit || product.unit || 'unit',
+            weightDisplay: weightDisplay,
+            totalSold: vp.analytics?.totalSold || 0,
+            totalRevenue: vp.analytics?.totalRevenue || 0
+          };
+        });
+        
+        console.log('Transformed Inventory Data:', inventoryData);
+        setInventory(inventoryData);
+      } else {
+        setInventory([]);
+      }
     } catch (err) {
-      setError(err.message);
-      // Mock data for demonstration
-      setInventory([
-        {
-          id: 1,
-          name: 'Organic Apples',
-          sku: 'APL-001',
-          category: 'Fruits & Vegetables',
-          currentStock: 150,
-          minThreshold: 20,
-          maxCapacity: 300,
-          unitPrice: 120,
-          totalValue: 18000,
-          lastRestocked: '2024-01-10T10:00:00Z',
-          status: 'in_stock',
-          location: 'A-1-01',
-          supplier: 'Fresh Farms Ltd'
-        },
-        {
-          id: 2,
-          name: 'Fresh Milk',
-          sku: 'MLK-001',
-          category: 'Dairy Products',
-          currentStock: 45,
-          minThreshold: 30,
-          maxCapacity: 200,
-          unitPrice: 60,
-          totalValue: 2700,
-          lastRestocked: '2024-01-12T08:00:00Z',
-          status: 'in_stock',
-          location: 'B-2-05',
-          supplier: 'Dairy Plus'
-        },
-        {
-          id: 3,
-          name: 'Whole Wheat Bread',
-          sku: 'BRD-001',
-          category: 'Bakery',
-          currentStock: 15,
-          minThreshold: 25,
-          maxCapacity: 100,
-          unitPrice: 45,
-          totalValue: 675,
-          lastRestocked: '2024-01-08T16:00:00Z',
-          status: 'low_stock',
-          location: 'C-1-12',
-          supplier: 'Fresh Bakery'
-        },
-        {
-          id: 4,
-          name: 'Premium Coffee',
-          sku: 'COF-001',
-          category: 'Beverages',
-          currentStock: 0,
-          minThreshold: 10,
-          maxCapacity: 80,
-          unitPrice: 250,
-          totalValue: 0,
-          lastRestocked: '2024-01-05T12:00:00Z',
-          status: 'out_of_stock',
-          location: 'D-3-08',
-          supplier: 'Coffee Masters'
-        }
-      ]);
+      console.error('Error fetching inventory:', err);
+      setError(err.message || 'Failed to load inventory');
+      setInventory([]);
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   };
 
   const handleStockAdjustment = async () => {
     try {
-      const adjustment = {
-        productId: selectedProduct.id,
-        type: stockAdjustment.type,
-        quantity: parseInt(stockAdjustment.quantity),
+      const quantity = parseInt(stockAdjustment.quantity);
+      const operation = stockAdjustment.type === 'add' ? 'add' : 'subtract';
+
+      // Call API to update stock
+      const response = await updateVendorProductStock(selectedProduct.vendorProductId, {
+        quantity,
+        operation,
         reason: stockAdjustment.reason
-      };
+      });
 
-      await addStockMovement(adjustment);
-      
-      // Update local state
-      const newStock = stockAdjustment.type === 'add' 
-        ? selectedProduct.currentStock + adjustment.quantity
-        : selectedProduct.currentStock - adjustment.quantity;
+      if (response.success) {
+        // Update local state with new stock
+        const newStock = response.data.newStock;
+        
+        setInventory(inventory.map(item => 
+          item.id === selectedProduct.id 
+            ? { 
+                ...item, 
+                currentStock: newStock,
+                totalValue: newStock * item.unitPrice,
+                status: getStockStatus(newStock, item.minThreshold)
+              }
+            : item
+        ));
 
-      setInventory(inventory.map(item => 
-        item.id === selectedProduct.id 
-          ? { 
-              ...item, 
-              currentStock: Math.max(0, newStock),
-              totalValue: Math.max(0, newStock) * item.unitPrice,
-              status: getStockStatus(Math.max(0, newStock), item.minThreshold)
-            }
-          : item
-      ));
-
-      setShowStockModal(false);
-      setStockAdjustment({ type: 'add', quantity: '', reason: '' });
-      setSelectedProduct(null);
+        setShowStockModal(false);
+        setStockAdjustment({ type: 'add', quantity: '', reason: '' });
+        setSelectedProduct(null);
+        
+        // Show success message
+        setSuccessMessage(`Stock updated successfully! New stock: ${newStock}`);
+        setTimeout(() => setSuccessMessage(null), 5000);
+      }
     } catch (err) {
-      setError(err.message);
+      console.error('Error updating stock:', err);
+      setError(err.message || 'Failed to update stock');
     }
   };
 
@@ -203,7 +208,7 @@ const InventoryManagement = () => {
     };
 
     return (
-      <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${styles[status]}`}>
+      <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${styles[status]}`}>
         {labels[status]}
       </span>
     );
@@ -246,98 +251,113 @@ const InventoryManagement = () => {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {/* Header */}
       <div className="sm:flex sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Inventory Management</h1>
-          <p className="mt-1 text-sm text-gray-500">
+          <h1 className="text-xl font-bold text-gray-900">Inventory Management</h1>
+          <p className="mt-0.5 text-xs text-gray-500">
             Track and manage your product inventory levels
           </p>
         </div>
-        <div className="mt-4 sm:mt-0 flex space-x-3">
-          <button className="inline-flex items-center rounded-md bg-white border border-gray-300 px-3 py-2 text-sm font-semibold text-gray-700  hover:bg-gray-50">
+        <div className="mt-3 sm:mt-0 flex space-x-2">
+          <button 
+            onClick={() => fetchInventory(true)}
+            disabled={refreshing}
+            className="inline-flex items-center rounded-lg bg-white border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <svg 
+              className={`h-3.5 w-3.5 mr-1.5 ${refreshing ? 'animate-spin' : ''}`} 
+              fill="none" 
+              viewBox="0 0 24 24" 
+              stroke="currentColor"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+            </svg>
+            {refreshing ? 'Refreshing...' : 'Refresh'}
+          </button>
+          <button className="inline-flex items-center rounded-lg bg-white border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50">
             Export Report
           </button>
-          <button className="inline-flex items-center rounded-md bg-blue-600 px-3 py-2 text-sm font-semibold text-white  hover:bg-blue-500">
-            <ArchiveBoxIcon className="h-4 w-4 mr-2" />
+          <button className="inline-flex items-center rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-blue-500">
+            <ArchiveBoxIcon className="h-3.5 w-3.5 mr-1.5" />
             Bulk Update
           </button>
         </div>
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 gap-5 sm:grid-cols-5">
-        <div className="bg-white overflow-hidden  rounded-lg">
-          <div className="p-5">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-5">
+        <div className="bg-white overflow-hidden rounded-lg border border-gray-200">
+          <div className="p-3">
             <div className="flex items-center">
-              <div className="flex-shrink-0">
-                <CubeIcon className="h-6 w-6 text-blue-600" />
+              <div className="shrink-0">
+                <CubeIcon className="h-5 w-5 text-blue-600" />
               </div>
-              <div className="ml-5 w-0 flex-1">
+              <div className="ml-3 w-0 flex-1">
                 <dl>
-                  <dt className="text-sm font-medium text-gray-500 truncate">Total Items</dt>
-                  <dd className="text-lg font-medium text-gray-900">{inventoryStats.totalItems}</dd>
+                  <dt className="text-xs font-medium text-gray-500 truncate">Total Items</dt>
+                  <dd className="text-base font-semibold text-gray-900">{inventoryStats.totalItems}</dd>
                 </dl>
               </div>
             </div>
           </div>
         </div>
-        <div className="bg-white overflow-hidden  rounded-lg">
-          <div className="p-5">
+        <div className="bg-white overflow-hidden rounded-lg border border-gray-200">
+          <div className="p-3">
             <div className="flex items-center">
-              <div className="flex-shrink-0">
-                <CheckCircleIcon className="h-6 w-6 text-green-600" />
+              <div className="shrink-0">
+                <CheckCircleIcon className="h-5 w-5 text-green-600" />
               </div>
-              <div className="ml-5 w-0 flex-1">
+              <div className="ml-3 w-0 flex-1">
                 <dl>
-                  <dt className="text-sm font-medium text-gray-500 truncate">In Stock</dt>
-                  <dd className="text-lg font-medium text-gray-900">{inventoryStats.inStock}</dd>
+                  <dt className="text-xs font-medium text-gray-500 truncate">In Stock</dt>
+                  <dd className="text-base font-semibold text-gray-900">{inventoryStats.inStock}</dd>
                 </dl>
               </div>
             </div>
           </div>
         </div>
-        <div className="bg-white overflow-hidden  rounded-lg">
-          <div className="p-5">
+        <div className="bg-white overflow-hidden rounded-lg border border-gray-200">
+          <div className="p-3">
             <div className="flex items-center">
-              <div className="flex-shrink-0">
-                <ExclamationTriangleIcon className="h-6 w-6 text-yellow-600" />
+              <div className="shrink-0">
+                <ExclamationTriangleIcon className="h-5 w-5 text-yellow-600" />
               </div>
-              <div className="ml-5 w-0 flex-1">
+              <div className="ml-3 w-0 flex-1">
                 <dl>
-                  <dt className="text-sm font-medium text-gray-500 truncate">Low Stock</dt>
-                  <dd className="text-lg font-medium text-gray-900">{inventoryStats.lowStock}</dd>
+                  <dt className="text-xs font-medium text-gray-500 truncate">Low Stock</dt>
+                  <dd className="text-base font-semibold text-gray-900">{inventoryStats.lowStock}</dd>
                 </dl>
               </div>
             </div>
           </div>
         </div>
-        <div className="bg-white overflow-hidden  rounded-lg">
-          <div className="p-5">
+        <div className="bg-white overflow-hidden rounded-lg border border-gray-200">
+          <div className="p-3">
             <div className="flex items-center">
-              <div className="flex-shrink-0">
-                <ClockIcon className="h-6 w-6 text-red-600" />
+              <div className="shrink-0">
+                <ClockIcon className="h-5 w-5 text-red-600" />
               </div>
-              <div className="ml-5 w-0 flex-1">
+              <div className="ml-3 w-0 flex-1">
                 <dl>
-                  <dt className="text-sm font-medium text-gray-500 truncate">Out of Stock</dt>
-                  <dd className="text-lg font-medium text-gray-900">{inventoryStats.outOfStock}</dd>
+                  <dt className="text-xs font-medium text-gray-500 truncate">Out of Stock</dt>
+                  <dd className="text-base font-semibold text-gray-900">{inventoryStats.outOfStock}</dd>
                 </dl>
               </div>
             </div>
           </div>
         </div>
-        <div className="bg-white overflow-hidden  rounded-lg">
-          <div className="p-5">
+        <div className="bg-white overflow-hidden rounded-lg border border-gray-200">
+          <div className="p-3">
             <div className="flex items-center">
-              <div className="flex-shrink-0">
-                <TagIcon className="h-6 w-6 text-purple-600" />
+              <div className="shrink-0">
+                <TagIcon className="h-5 w-5 text-purple-600" />
               </div>
-              <div className="ml-5 w-0 flex-1">
+              <div className="ml-3 w-0 flex-1">
                 <dl>
-                  <dt className="text-sm font-medium text-gray-500 truncate">Total Value</dt>
-                  <dd className="text-lg font-medium text-gray-900">₹{inventoryStats.totalValue.toLocaleString()}</dd>
+                  <dt className="text-xs font-medium text-gray-500 truncate">Total Value</dt>
+                  <dd className="text-base font-semibold text-gray-900">₹{inventoryStats.totalValue.toLocaleString()}</dd>
                 </dl>
               </div>
             </div>
@@ -346,22 +366,22 @@ const InventoryManagement = () => {
       </div>
 
       {/* Filters */}
-      <div className="bg-white  rounded-lg p-6">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="bg-white rounded-lg p-3 border border-gray-200">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
           <div className="relative">
-            <MagnifyingGlassIcon className="pointer-events-none absolute inset-y-0 left-0 h-full w-5 text-gray-400 pl-3" />
+            <MagnifyingGlassIcon className="pointer-events-none absolute inset-y-0 left-0 h-full w-4 text-gray-400 pl-2.5" />
             <input
               type="text"
               placeholder="Search products..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="block w-full rounded-lg border-gray-300 pl-10 focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+              className="block w-full rounded-lg border-gray-300 pl-8 text-xs focus:border-blue-500 focus:ring-blue-500"
             />
           </div>
           <select
             value={filterCategory}
             onChange={(e) => setFilterCategory(e.target.value)}
-            className="block w-full rounded-lg border-gray-300 focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+            className="block w-full rounded-lg border-gray-300 text-xs focus:border-blue-500 focus:ring-blue-500"
           >
             <option value="all">All Categories</option>
             {categories.map(category => (
@@ -371,101 +391,124 @@ const InventoryManagement = () => {
           <select
             value={filterStock}
             onChange={(e) => setFilterStock(e.target.value)}
-            className="block w-full rounded-lg border-gray-300 focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+            className="block w-full rounded-lg border-gray-300 text-xs focus:border-blue-500 focus:ring-blue-500"
           >
             <option value="all">All Stock Levels</option>
             <option value="in_stock">In Stock</option>
             <option value="low_stock">Low Stock</option>
             <option value="out_of_stock">Out of Stock</option>
           </select>
-          <button className="inline-flex items-center justify-center rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
-            <AdjustmentsHorizontalIcon className="h-4 w-4 mr-2" />
+          <button className="inline-flex items-center justify-center rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50">
+            <AdjustmentsHorizontalIcon className="h-3.5 w-3.5 mr-1.5" />
             Advanced Filters
           </button>
         </div>
       </div>
 
       {/* Inventory Table */}
-      <div className="bg-white  rounded-lg overflow-hidden">
+      <div className="bg-white rounded-lg overflow-hidden border border-gray-200">
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Product
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Category
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Current Stock
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Stock Level
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Status
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Value
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Last Restocked
                 </th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Actions
                 </th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {filteredInventory.map((item) => (
-                <tr key={item.id} className="hover:bg-gray-50">
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div>
-                      <div className="text-sm font-medium text-gray-900">{item.name}</div>
-                      <div className="text-sm text-gray-500">{item.sku}</div>
-                      <div className="text-xs text-gray-400">Location: {item.location}</div>
-                    </div>
+              {filteredInventory.length === 0 ? (
+                <tr>
+                  <td colSpan="8" className="px-4 py-8 text-center text-sm text-gray-500">
+                    {searchTerm || filterCategory !== 'all' || filterStock !== 'all' 
+                      ? 'No products match your filters' 
+                      : 'No products in inventory. Add products to get started.'}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
+                </tr>
+              ) : (
+                filteredInventory.map((item) => (
+                  <tr key={item.id} className="hover:bg-gray-50">
+                    <td className="px-4 py-3 whitespace-nowrap">
+                      <div className="flex items-center">
+                        {item.image && (
+                          <img 
+                            src={item.image} 
+                            alt={item.name}
+                            className="h-10 w-10 rounded object-cover mr-3"
+                            onError={(e) => {
+                              e.target.style.display = 'none';
+                            }}
+                          />
+                        )}
+                        <div>
+                          <div className="text-xs font-medium text-gray-900">{item.name}</div>
+                          <div className="text-xs text-gray-500">{item.sku}</div>
+                          {item.weightDisplay && (
+                            <div className="text-xs text-gray-400">{item.weightDisplay}</div>
+                          )}
+                        </div>
+                      </div>
+                    </td>
+                  <td className="px-4 py-3 whitespace-nowrap">
                     <div className="flex items-center">
-                      <TagIcon className="h-4 w-4 text-gray-400 mr-2" />
-                      <span className="text-sm text-gray-900">{item.category}</span>
+                      <TagIcon className="h-3.5 w-3.5 text-gray-400 mr-1.5" />
+                      <span className="text-xs text-gray-900">{item.category}</span>
                     </div>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm font-medium text-gray-900">{item.currentStock}</div>
+                  <td className="px-4 py-3 whitespace-nowrap">
+                    <div className="text-xs font-medium text-gray-900">{item.currentStock}</div>
                     <div className="text-xs text-gray-500">Min: {item.minThreshold} | Max: {item.maxCapacity}</div>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="w-full bg-gray-200 rounded-full h-2">
+                  <td className="px-4 py-3 whitespace-nowrap">
+                    <div className="w-full bg-gray-200 rounded-full h-1.5">
                       <div
-                        className={`h-2 rounded-full ${
+                        className={`h-1.5 rounded-full ${
                           item.status === 'in_stock' ? 'bg-green-500' :
                           item.status === 'low_stock' ? 'bg-yellow-500' : 'bg-red-500'
                         }`}
                         style={{ width: `${getStockPercentage(item.currentStock, item.maxCapacity)}%` }}
                       ></div>
                     </div>
-                    <div className="text-xs text-gray-500 mt-1">
+                    <div className="text-xs text-gray-500 mt-0.5">
                       {getStockPercentage(item.currentStock, item.maxCapacity).toFixed(0)}% capacity
                     </div>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
+                  <td className="px-4 py-3 whitespace-nowrap">
                     <div className="flex items-center">
                       {getStatusIcon(item.status)}
-                      <div className="ml-2">{getStatusBadge(item.status)}</div>
+                      <div className="ml-1.5">{getStatusBadge(item.status)}</div>
                     </div>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm font-medium text-gray-900">₹{item.totalValue.toLocaleString()}</div>
+                  <td className="px-4 py-3 whitespace-nowrap">
+                    <div className="text-xs font-medium text-gray-900">₹{item.totalValue.toLocaleString()}</div>
                     <div className="text-xs text-gray-500">@₹{item.unitPrice} each</div>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                  <td className="px-4 py-3 whitespace-nowrap text-xs text-gray-900">
                     {formatDate(item.lastRestocked)}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                    <div className="flex justify-end space-x-2">
+                  <td className="px-4 py-3 whitespace-nowrap text-right text-xs font-medium">
+                    <div className="flex justify-end space-x-1.5">
                       <button
                         onClick={() => {
                           setSelectedProduct(item);
@@ -491,7 +534,8 @@ const InventoryManagement = () => {
                     </div>
                   </td>
                 </tr>
-              ))}
+              ))
+              )}
             </tbody>
           </table>
         </div>
@@ -503,24 +547,24 @@ const InventoryManagement = () => {
           <div className="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
             <div className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" onClick={() => setShowStockModal(false)}></div>
             
-            <div className="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden  transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
-              <div className="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
-                <h3 className="text-lg font-medium text-gray-900 mb-4">
+            <div className="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
+              <div className="bg-white px-4 pt-4 pb-4 sm:p-5">
+                <h3 className="text-base font-semibold text-gray-900 mb-3">
                   {stockAdjustment.type === 'add' ? 'Add Stock' : 'Remove Stock'} - {selectedProduct.name}
                 </h3>
                 
-                <div className="space-y-4">
-                  <div className="bg-gray-50 p-4 rounded-lg">
-                    <div className="text-sm text-gray-600">Current Stock: <span className="font-medium">{selectedProduct.currentStock}</span></div>
-                    <div className="text-sm text-gray-600">SKU: <span className="font-medium">{selectedProduct.sku}</span></div>
+                <div className="space-y-3">
+                  <div className="bg-gray-50 p-3 rounded-lg">
+                    <div className="text-xs text-gray-600">Current Stock: <span className="font-medium">{selectedProduct.currentStock}</span></div>
+                    <div className="text-xs text-gray-600">SKU: <span className="font-medium">{selectedProduct.sku}</span></div>
                   </div>
                   
                   <div>
-                    <label className="block text-sm font-medium text-gray-700">Adjustment Type</label>
+                    <label className="block text-xs font-medium text-gray-700">Adjustment Type</label>
                     <select
                       value={stockAdjustment.type}
                       onChange={(e) => setStockAdjustment({...stockAdjustment, type: e.target.value})}
-                      className="mt-1 block w-full rounded-md border-gray-300  focus:border-blue-500 focus:ring-blue-500"
+                      className="mt-1 block w-full rounded-md border-gray-300 text-xs focus:border-blue-500 focus:ring-blue-500"
                     >
                       <option value="add">Add Stock</option>
                       <option value="remove">Remove Stock</option>
@@ -528,24 +572,24 @@ const InventoryManagement = () => {
                   </div>
                   
                   <div>
-                    <label className="block text-sm font-medium text-gray-700">Quantity</label>
+                    <label className="block text-xs font-medium text-gray-700">Quantity</label>
                     <input
                       type="number"
                       min="1"
                       max={stockAdjustment.type === 'remove' ? selectedProduct.currentStock : undefined}
                       value={stockAdjustment.quantity}
                       onChange={(e) => setStockAdjustment({...stockAdjustment, quantity: e.target.value})}
-                      className="mt-1 block w-full rounded-md border-gray-300  focus:border-blue-500 focus:ring-blue-500"
+                      className="mt-1 block w-full rounded-md border-gray-300 text-xs focus:border-blue-500 focus:ring-blue-500"
                       placeholder="Enter quantity"
                     />
                   </div>
                   
                   <div>
-                    <label className="block text-sm font-medium text-gray-700">Reason</label>
+                    <label className="block text-xs font-medium text-gray-700">Reason</label>
                     <select
                       value={stockAdjustment.reason}
                       onChange={(e) => setStockAdjustment({...stockAdjustment, reason: e.target.value})}
-                      className="mt-1 block w-full rounded-md border-gray-300  focus:border-blue-500 focus:ring-blue-500"
+                      className="mt-1 block w-full rounded-md border-gray-300 text-xs focus:border-blue-500 focus:ring-blue-500"
                     >
                       <option value="">Select reason</option>
                       {stockReasons[stockAdjustment.type].map(reason => (
@@ -555,8 +599,8 @@ const InventoryManagement = () => {
                   </div>
                   
                   {stockAdjustment.quantity && (
-                    <div className="bg-blue-50 p-4 rounded-lg">
-                      <div className="text-sm text-blue-700">
+                    <div className="bg-blue-50 p-3 rounded-lg">
+                      <div className="text-xs text-blue-700">
                         New stock level will be: <span className="font-medium">
                           {stockAdjustment.type === 'add' 
                             ? selectedProduct.currentStock + parseInt(stockAdjustment.quantity || 0)
@@ -569,11 +613,11 @@ const InventoryManagement = () => {
                 </div>
               </div>
               
-              <div className="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
+              <div className="bg-gray-50 px-4 py-3 sm:px-5 sm:flex sm:flex-row-reverse">
                 <button
                   onClick={handleStockAdjustment}
                   disabled={!stockAdjustment.quantity || !stockAdjustment.reason}
-                  className="w-full inline-flex justify-center rounded-md border border-transparent  px-4 py-2 bg-blue-600 text-base font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:ml-3 sm:w-auto sm:text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="w-full inline-flex justify-center rounded-lg border border-transparent px-3 py-1.5 bg-blue-600 text-xs font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:ml-3 sm:w-auto disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {stockAdjustment.type === 'add' ? 'Add Stock' : 'Remove Stock'}
                 </button>
@@ -583,7 +627,7 @@ const InventoryManagement = () => {
                     setStockAdjustment({ type: 'add', quantity: '', reason: '' });
                     setSelectedProduct(null);
                   }}
-                  className="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300  px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm"
+                  className="mt-3 w-full inline-flex justify-center rounded-lg border border-gray-300 px-3 py-1.5 bg-white text-xs font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:mt-0 sm:ml-3 sm:w-auto"
                 >
                   Cancel
                 </button>
@@ -593,9 +637,21 @@ const InventoryManagement = () => {
         </div>
       )}
 
+      {successMessage && (
+        <div className="rounded-md bg-green-50 p-3 border border-green-200">
+          <div className="flex items-center">
+            <CheckCircleIcon className="h-4 w-4 text-green-600 mr-2" />
+            <div className="text-xs text-green-700">{successMessage}</div>
+          </div>
+        </div>
+      )}
+
       {error && (
-        <div className="rounded-md bg-red-50 p-4">
-          <div className="text-sm text-red-700">{error}</div>
+        <div className="rounded-md bg-red-50 p-3 border border-red-200">
+          <div className="flex items-center">
+            <ExclamationTriangleIcon className="h-4 w-4 text-red-600 mr-2" />
+            <div className="text-xs text-red-700">{error}</div>
+          </div>
         </div>
       )}
     </div>

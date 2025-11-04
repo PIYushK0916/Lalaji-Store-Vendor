@@ -105,6 +105,55 @@ export const updateOrderStatus = async (id, status) => {
   });
 };
 
+// Vendor Products APIs (for product selection and inventory)
+export const getVendorProducts = async (params = {}) => {
+  const queryString = new URLSearchParams(params).toString();
+  return apiRequest(`/vendor-products/my-products${queryString ? `?${queryString}` : ''}`);
+};
+
+export const getAvailableProducts = async (params = {}) => {
+  const queryString = new URLSearchParams(params).toString();
+  return apiRequest(`/vendor-products/available${queryString ? `?${queryString}` : ''}`);
+};
+
+export const selectProduct = async (productData) => {
+  return apiRequest('/vendor-products/select', {
+    method: 'POST',
+    body: JSON.stringify(productData),
+  });
+};
+
+export const bulkSelectProducts = async (products) => {
+  return apiRequest('/vendor-products/bulk-select', {
+    method: 'POST',
+    body: JSON.stringify({ products }),
+  });
+};
+
+export const updateVendorProduct = async (id, productData) => {
+  return apiRequest(`/vendor-products/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(productData),
+  });
+};
+
+export const removeVendorProduct = async (id) => {
+  return apiRequest(`/vendor-products/${id}`, {
+    method: 'DELETE',
+  });
+};
+
+export const updateVendorProductStock = async (id, stockData) => {
+  return apiRequest(`/vendor-products/${id}/stock`, {
+    method: 'PUT',
+    body: JSON.stringify(stockData),
+  });
+};
+
+export const getVendorAnalytics = async () => {
+  return apiRequest('/vendor-products/analytics');
+};
+
 // Inventory APIs
 export const getInventory = async (params = {}) => {
   const queryString = new URLSearchParams(params).toString();
@@ -321,6 +370,14 @@ export default {
   getOrders,
   getOrder,
   updateOrderStatus,
+  getVendorProducts,
+  getAvailableProducts,
+  selectProduct,
+  bulkSelectProducts,
+  updateVendorProduct,
+  removeVendorProduct,
+  updateVendorProductStock,
+  getVendorAnalytics,
   getInventory,
   updateStock,
   addStockMovement,
