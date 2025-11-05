@@ -105,6 +105,25 @@ export const updateOrderStatus = async (id, status) => {
   });
 };
 
+export const assignDeliveryBoy = async (orderId, deliveryBoyId) => {
+  return apiRequest(`/vendor/orders/${orderId}/assign-delivery`, {
+    method: 'PUT',
+    body: JSON.stringify({ deliveryBoyId }),
+  });
+};
+
+export const getDeliveryTeam = async () => {
+  return apiRequest('/vendor/delivery-team');
+};
+
+export const getAvailableDeliveryBoys = async () => {
+  return apiRequest('/vendor/delivery-team/available');
+};
+
+export const getAllDeliveryTeam = async () => {
+  return apiRequest('/vendor/delivery-team');
+};
+
 // Vendor Products APIs (for product selection and inventory)
 export const getVendorProducts = async (params = {}) => {
   const queryString = new URLSearchParams(params).toString();

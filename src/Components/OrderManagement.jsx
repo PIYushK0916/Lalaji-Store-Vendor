@@ -18,7 +18,7 @@ import {
   DocumentArrowDownIcon,
   ExclamationTriangleIcon
 } from '@heroicons/react/24/outline';
-import { getOrders, updateOrderStatus } from '../utils/api';
+import { getOrders, updateOrderStatus, getVendorProfile, getAvailableDeliveryBoys, assignDeliveryBoy, getAllDeliveryTeam } from '../utils/api';
 
 const OrderManagement = () => {
   const [orders, setOrders] = useState([]);
@@ -38,11 +38,18 @@ const OrderManagement = () => {
   const [showOrderDetails, setShowOrderDetails] = useState(false);
   const [statusDropdownOpen, setStatusDropdownOpen] = useState(false);
   const [dateDropdownOpen, setDateDropdownOpen] = useState(false);
+  const [vendorProfile, setVendorProfile] = useState(null);
+  const [availableDeliveryBoys, setAvailableDeliveryBoys] = useState([]);
+  const [allDeliveryTeam, setAllDeliveryTeam] = useState([]);
+  const [showAssignDelivery, setShowAssignDelivery] = useState(false);
+  const [selectedDeliveryBoy, setSelectedDeliveryBoy] = useState('');
+  const [assigningDelivery, setAssigningDelivery] = useState(false);
   const statusDropdownRef = useRef(null);
   const dateDropdownRef = useRef(null);
 
   useEffect(() => {
     fetchOrders();
+    fetchVendorProfile();
   }, []);
 
   // Close dropdown when clicking outside
@@ -147,6 +154,73 @@ const OrderManagement = () => {
     } finally {
       setLoading(false);
       setRefreshing(false);
+    }
+  };
+
+  const fetchVendorProfile = async () => {
+    try {
+      const response = await getVendorProfile();
+      if (response && response.success && response.data) {
+        setVendorProfile(response.data);
+      }
+    } catch (err) {
+      console.error('Error fetching vendor profile:', err);
+    }
+  };
+
+  const fetchAvailableDeliveryBoys = async () => {
+    try {
+      const response = await getAllDeliveryTeam();
+      if (response && response.success && response.data) {
+        // Get all delivery team members
+        const allTeam = response.data.deliveryBoys || [];
+        setAllDeliveryTeam(allTeam);
+        
+        // Filter only available ones for quick access
+        const available = allTeam.filter(db => db.deliveryBoyInfo?.isAvailable !== false && db.isActive);
+        setAvailableDeliveryBoys(available);
+      }
+    } catch (err) {
+      console.error('Error fetching delivery boys:', err);
+      setAllDeliveryTeam([]);
+      setAvailableDeliveryBoys([]);
+    }
+  };
+
+  const handleAssignDelivery = async () => {
+    if (!selectedDeliveryBoy) {
+      setError('Please select a delivery boy');
+      setTimeout(() => setError(null), 3000);
+      return;
+    }
+
+    try {
+      setAssigningDelivery(true);
+      setError(null);
+      
+      const response = await assignDeliveryBoy(selectedOrder.id, selectedDeliveryBoy);
+      
+      if (response && response.success) {
+        setSuccessMessage('Delivery boy assigned successfully!');
+        setTimeout(() => setSuccessMessage(null), 5000);
+        
+        // Refresh orders and close modal
+        await fetchOrders(true);
+        setShowAssignDelivery(false);
+        setSelectedDeliveryBoy('');
+        
+        // Update selected order to show new delivery boy
+        const updatedOrder = orders.find(o => o.id === selectedOrder.id);
+        if (updatedOrder) {
+          setSelectedOrder(updatedOrder);
+        }
+      }
+    } catch (err) {
+      console.error('Error assigning delivery boy:', err);
+      setError(err.message || 'Failed to assign delivery boy');
+      setTimeout(() => setError(null), 5000);
+    } finally {
+      setAssigningDelivery(false);
     }
   };
 
@@ -936,7 +1010,7 @@ const OrderManagement = () => {
                       {getPaymentStatusBadge(order.paymentStatus)}
                     </td>
                     <td className="px-4 py-3">
-                      <div className="flex justify-center gap-2">
+                      <div className="flex justify-center gap-2 flex-wrap">
                         <button
                           onClick={() => {
                             setSelectedOrder(order);
@@ -947,6 +1021,24 @@ const OrderManagement = () => {
                           <EyeIcon className="h-3.5 w-3.5 mr-1" />
                           View Details
                         </button>
+                        
+                        {/* Show Assign Delivery button for self-delivery vendors */}
+                        {vendorProfile?.vendorInfo?.deliveryModel === 'self_delivery' && 
+                         !order.delivery?.deliveryBoy &&
+                         ['packed', 'processing', 'confirmed'].includes(order.status) && (
+                          <button
+                            onClick={async () => {
+                              setSelectedOrder(order);
+                              await fetchAvailableDeliveryBoys();
+                              setShowAssignDelivery(true);
+                            }}
+                            className="inline-flex items-center px-2.5 py-1.5 text-xs font-medium text-white bg-purple-600 border border-purple-700 rounded hover:bg-purple-700"
+                          >
+                            <UserIcon className="h-3.5 w-3.5 mr-1" />
+                            Assign Delivery
+                          </button>
+                        )}
+                        
                         {order.status === 'pending' && (
                           <select
                             onChange={(e) => {
@@ -993,46 +1085,22 @@ const OrderManagement = () => {
                           </select>
                         )}
                         {order.status === 'packed' && (
-                          <select
-                            onChange={(e) => {
-                              if (e.target.value) {
-                                handleStatusUpdate(order.id, e.target.value);
-                                e.target.value = '';
-                              }
-                            }}
-                            className="text-xs border-gray-300 rounded px-2 py-1 focus:ring-blue-500 focus:border-blue-500"
-                          >
-                            <option value="">Update Status</option>
-                            <option value="shipped">Mark as Shipped</option>
-                          </select>
+                          <div className="inline-flex items-center px-2.5 py-1.5 text-xs font-medium text-gray-600 bg-gray-100 border border-gray-300 rounded">
+                            <TruckIcon className="h-3.5 w-3.5 mr-1" />
+                            Waiting for Delivery Pickup
+                          </div>
                         )}
                         {order.status === 'shipped' && (
-                          <select
-                            onChange={(e) => {
-                              if (e.target.value) {
-                                handleStatusUpdate(order.id, e.target.value);
-                                e.target.value = '';
-                              }
-                            }}
-                            className="text-xs border-gray-300 rounded px-2 py-1 focus:ring-blue-500 focus:border-blue-500"
-                          >
-                            <option value="">Update Status</option>
-                            <option value="out_for_delivery">Out for Delivery</option>
-                          </select>
+                          <div className="inline-flex items-center px-2.5 py-1.5 text-xs font-medium text-blue-600 bg-blue-50 border border-blue-200 rounded">
+                            <TruckIcon className="h-3.5 w-3.5 mr-1" />
+                            In Transit
+                          </div>
                         )}
                         {order.status === 'out_for_delivery' && (
-                          <select
-                            onChange={(e) => {
-                              if (e.target.value) {
-                                handleStatusUpdate(order.id, e.target.value);
-                                e.target.value = '';
-                              }
-                            }}
-                            className="text-xs border-gray-300 rounded px-2 py-1 focus:ring-blue-500 focus:border-blue-500"
-                          >
-                            <option value="">Update Status</option>
-                            <option value="delivered">Mark as Delivered</option>
-                          </select>
+                          <div className="inline-flex items-center px-2.5 py-1.5 text-xs font-medium text-indigo-600 bg-indigo-50 border border-indigo-200 rounded">
+                            <TruckIcon className="h-3.5 w-3.5 mr-1" />
+                            Out for Delivery
+                          </div>
                         )}
                       </div>
                     </td>
@@ -1280,6 +1348,21 @@ const OrderManagement = () => {
                                 'Delivery partner assignment in progress...'
                               )}
                             </p>
+                            {/* Show Assign Button for Self-Delivery Vendors */}
+                            {vendorProfile?.vendorInfo?.deliveryModel === 'self_delivery' && 
+                             selectedOrder.delivery?.partner === 'vendor_self' &&
+                             ['packed', 'processing', 'confirmed'].includes(selectedOrder.status) && (
+                              <button
+                                onClick={async () => {
+                                  await fetchAvailableDeliveryBoys();
+                                  setShowAssignDelivery(true);
+                                }}
+                                className="mt-2 inline-flex items-center px-3 py-1.5 text-xs font-medium text-white bg-purple-600 rounded-lg hover:bg-purple-700"
+                              >
+                                <UserIcon className="h-3.5 w-3.5 mr-1.5" />
+                                Assign Delivery Person
+                              </button>
+                            )}
                           </div>
                         </div>
                       </div>
@@ -1296,6 +1379,28 @@ const OrderManagement = () => {
                               {selectedOrder.delivery.partner === 'lalaji_network' 
                                 ? 'Order assigned to Lalaji Network delivery partner for efficient delivery.'
                                 : 'Order assigned to your self-delivery team member.'}
+                              {selectedOrder.status === 'packed' && (
+                                <span className="block mt-1 font-medium">
+                                  📦 Order is ready for pickup. Delivery partner will update status from here.
+                                </span>
+                              )}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                    
+                    {/* Info for orders after packed status */}
+                    {['shipped', 'out_for_delivery', 'delivered'].includes(selectedOrder.status) && (
+                      <div className="mt-2 p-3 bg-blue-50 rounded-lg border border-blue-200">
+                        <div className="flex items-start">
+                          <svg className="h-5 w-5 text-blue-600 mr-2 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                          </svg>
+                          <div className="flex-1">
+                            <p className="text-sm font-medium text-blue-900">Delivery in Progress</p>
+                            <p className="text-xs text-blue-800 mt-1">
+                              The delivery partner is managing this order. Status updates will be handled by the delivery team.
                             </p>
                           </div>
                         </div>
@@ -1413,40 +1518,28 @@ const OrderManagement = () => {
                     </button>
                   )}
                   {selectedOrder.status === 'packed' && (
-                    <button
-                      onClick={() => {
-                        handleStatusUpdate(selectedOrder.id, 'shipped');
-                        setShowOrderDetails(false);
-                      }}
-                      className="inline-flex items-center rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-blue-700"
-                    >
+                    <div className="inline-flex items-center px-3 py-1.5 text-xs font-medium text-gray-600 bg-gray-100 border border-gray-300 rounded-lg">
                       <TruckIcon className="h-3.5 w-3.5 mr-1.5" />
-                      Mark as Shipped
-                    </button>
+                      Order Packed - Waiting for Delivery Boy Pickup
+                    </div>
                   )}
                   {selectedOrder.status === 'shipped' && (
-                    <button
-                      onClick={() => {
-                        handleStatusUpdate(selectedOrder.id, 'out_for_delivery');
-                        setShowOrderDetails(false);
-                      }}
-                      className="inline-flex items-center rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-blue-700"
-                    >
+                    <div className="inline-flex items-center px-3 py-1.5 text-xs font-medium text-blue-600 bg-blue-50 border border-blue-200 rounded-lg">
                       <TruckIcon className="h-3.5 w-3.5 mr-1.5" />
-                      Out for Delivery
-                    </button>
+                      Order in Transit - Delivery Boy Managing
+                    </div>
                   )}
                   {selectedOrder.status === 'out_for_delivery' && (
-                    <button
-                      onClick={() => {
-                        handleStatusUpdate(selectedOrder.id, 'delivered');
-                        setShowOrderDetails(false);
-                      }}
-                      className="inline-flex items-center rounded-lg bg-green-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-green-700"
-                    >
+                    <div className="inline-flex items-center px-3 py-1.5 text-xs font-medium text-indigo-600 bg-indigo-50 border border-indigo-200 rounded-lg">
+                      <TruckIcon className="h-3.5 w-3.5 mr-1.5" />
+                      Out for Delivery - Delivery Boy Managing
+                    </div>
+                  )}
+                  {selectedOrder.status === 'delivered' && (
+                    <div className="inline-flex items-center px-3 py-1.5 text-xs font-medium text-green-600 bg-green-50 border border-green-200 rounded-lg">
                       <CheckCircleIcon className="h-3.5 w-3.5 mr-1.5" />
-                      Mark as Delivered
-                    </button>
+                      Order Delivered Successfully
+                    </div>
                   )}
                 </div>
                 <button
@@ -1454,6 +1547,209 @@ const OrderManagement = () => {
                   className="inline-flex items-center rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
                 >
                   Close
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Assign Delivery Boy Modal */}
+      {showAssignDelivery && selectedOrder && (
+        <div className="fixed inset-0 z-50 overflow-y-auto">
+          <div className="flex items-center justify-center min-h-screen pt-4 px-4 pb-20">
+            {/* Backdrop */}
+            <div 
+              className="fixed inset-0 bg-black/50 transition-opacity" 
+              onClick={() => setShowAssignDelivery(false)}
+              aria-hidden="true"
+            ></div>
+            
+            {/* Modal Content */}
+            <div className="relative bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:max-w-lg sm:w-full z-10">
+              {/* Modal Header */}
+              <div className="bg-white px-6 py-4 border-b border-gray-200">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="text-lg font-bold text-gray-900">
+                      Assign Delivery Person
+                    </h3>
+                    <p className="text-xs text-gray-500 mt-0.5">
+                      Select a delivery person from your team for Order #{selectedOrder.orderNumber || selectedOrder.id}
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => setShowAssignDelivery(false)}
+                    className="text-gray-400 hover:text-gray-600 transition-colors"
+                  >
+                    <XCircleIcon className="h-6 w-6" />
+                  </button>
+                </div>
+              </div>
+              
+              {/* Modal Content */}
+              <div className="bg-gray-50 px-6 py-4 max-h-[60vh] overflow-y-auto">
+                {allDeliveryTeam.length === 0 ? (
+                  <div className="text-center py-8">
+                    <UserIcon className="h-12 w-12 text-gray-400 mx-auto mb-3" />
+                    <p className="text-sm text-gray-600 mb-2">No delivery persons in your team</p>
+                    <p className="text-xs text-gray-500">
+                      Please add delivery persons to your team first.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between mb-2">
+                      <label className="block text-sm font-medium text-gray-700">
+                        Select Delivery Person ({allDeliveryTeam.length} team members)
+                      </label>
+                      <div className="flex gap-2 text-xs">
+                        <span className="inline-flex items-center">
+                          <span className="w-2 h-2 bg-green-500 rounded-full mr-1"></span>
+                          Available
+                        </span>
+                        <span className="inline-flex items-center">
+                          <span className="w-2 h-2 bg-red-500 rounded-full mr-1"></span>
+                          Busy
+                        </span>
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      {allDeliveryTeam.map((deliveryBoy) => {
+                        const isAvailable = deliveryBoy.deliveryBoyInfo?.isAvailable !== false && deliveryBoy.isActive;
+                        const isCurrentlyAssigned = deliveryBoy.deliveryBoyInfo?.currentOrderId;
+                        const canSelect = isAvailable && !isCurrentlyAssigned;
+                        
+                        return (
+                          <div
+                            key={deliveryBoy._id}
+                            onClick={() => canSelect && setSelectedDeliveryBoy(deliveryBoy._id)}
+                            className={`p-4 rounded-lg border-2 transition-all ${
+                              selectedDeliveryBoy === deliveryBoy._id
+                                ? 'border-purple-500 bg-purple-50'
+                                : canSelect
+                                ? 'border-gray-200 bg-white hover:border-purple-300 cursor-pointer'
+                                : 'border-gray-200 bg-gray-50 opacity-60 cursor-not-allowed'
+                            }`}
+                          >
+                            <div className="flex items-start justify-between">
+                              <div className="flex items-start flex-1">
+                                <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${
+                                  selectedDeliveryBoy === deliveryBoy._id
+                                    ? 'bg-purple-600'
+                                    : isAvailable
+                                    ? 'bg-green-100'
+                                    : 'bg-gray-300'
+                                }`}>
+                                  <UserIcon className={`h-5 w-5 ${
+                                    selectedDeliveryBoy === deliveryBoy._id
+                                      ? 'text-white'
+                                      : isAvailable
+                                      ? 'text-green-600'
+                                      : 'text-gray-600'
+                                  }`} />
+                                </div>
+                                <div className="ml-3 flex-1">
+                                  <div className="flex items-center gap-2">
+                                    <p className="text-sm font-medium text-gray-900">
+                                      {deliveryBoy.name}
+                                    </p>
+                                    {/* Status Indicator */}
+                                    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
+                                      isAvailable 
+                                        ? 'bg-green-100 text-green-800' 
+                                        : 'bg-red-100 text-red-800'
+                                    }`}>
+                                      <span className={`w-1.5 h-1.5 rounded-full mr-1 ${
+                                        isAvailable ? 'bg-green-500' : 'bg-red-500'
+                                      }`}></span>
+                                      {isAvailable ? 'Available' : 'Busy'}
+                                    </span>
+                                  </div>
+                                  <p className="text-xs text-gray-500 flex items-center mt-1">
+                                    <PhoneIcon className="h-3 w-3 mr-1" />
+                                    {deliveryBoy.phoneNumber}
+                                  </p>
+                                  {deliveryBoy.deliveryBoyInfo?.vehicleType && (
+                                    <p className="text-xs text-gray-500 mt-1">
+                                      🛵 {deliveryBoy.deliveryBoyInfo.vehicleType}
+                                      {deliveryBoy.deliveryBoyInfo.vehicleNumber && 
+                                        ` - ${deliveryBoy.deliveryBoyInfo.vehicleNumber}`}
+                                    </p>
+                                  )}
+                                  {/* Show current assignment if busy */}
+                                  {isCurrentlyAssigned && (
+                                    <div className="mt-2 p-2 bg-yellow-50 border border-yellow-200 rounded text-xs">
+                                      <p className="text-yellow-800 font-medium flex items-center">
+                                        <svg className="h-3 w-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                                          <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clipRule="evenodd" />
+                                        </svg>
+                                        Currently delivering order
+                                      </p>
+                                      <p className="text-yellow-700 mt-0.5">
+                                        Order ID: #{isCurrentlyAssigned.toString().slice(-8)}
+                                      </p>
+                                    </div>
+                                  )}
+                                  {!deliveryBoy.isActive && (
+                                    <div className="mt-2 p-2 bg-gray-100 border border-gray-200 rounded text-xs">
+                                      <p className="text-gray-600">
+                                        ⚠️ Account inactive
+                                      </p>
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                              {selectedDeliveryBoy === deliveryBoy._id && canSelect && (
+                                <CheckCircleIcon className="h-6 w-6 text-purple-600 shrink-0 ml-2" />
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                    
+                    {/* Summary at bottom */}
+                    <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                      <p className="text-xs text-blue-900 flex items-center">
+                        <svg className="h-4 w-4 mr-1.5" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                        </svg>
+                        {availableDeliveryBoys.length} of {allDeliveryTeam.length} delivery persons are available for assignment
+                      </p>
+                    </div>
+                  </div>
+                )}
+              </div>
+              
+              {/* Modal Footer */}
+              <div className="bg-gray-50 px-6 py-3 border-t border-gray-200 flex justify-end gap-2">
+                <button
+                  onClick={() => setShowAssignDelivery(false)}
+                  className="inline-flex items-center rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+                  disabled={assigningDelivery}
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleAssignDelivery}
+                  disabled={!selectedDeliveryBoy || assigningDelivery || allDeliveryTeam.length === 0}
+                  className="inline-flex items-center rounded-lg bg-purple-600 px-4 py-2 text-sm font-medium text-white hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {assigningDelivery ? (
+                    <>
+                      <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                      Assigning...
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircleIcon className="h-4 w-4 mr-1.5" />
+                      Assign
+                    </>
+                  )}
                 </button>
               </div>
             </div>

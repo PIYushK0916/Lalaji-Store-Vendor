@@ -16,6 +16,7 @@ import {
   WalletIcon,
   ArchiveBoxIcon,
   UserIcon,
+  TruckIcon,
 } from "@heroicons/react/24/outline";
 import { useState, useEffect } from "react";
 import {
@@ -42,6 +43,8 @@ const VendorLayout = ({ children }) => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [user, setUser] = useState(null);
+  const [deliveryModel, setDeliveryModel] = useState('lalaji_network');
+  const [isTogglingDelivery, setIsTogglingDelivery] = useState(false);
   const location = useLocation();
 
   useEffect(() => {
@@ -50,6 +53,10 @@ const VendorLayout = ({ children }) => {
       const userData = auth.getUser();
       if (userData) {
         setUser(userData);
+        // Set delivery model from user data
+        if (userData.vendorInfo?.deliveryModel) {
+          setDeliveryModel(userData.vendorInfo.deliveryModel);
+        }
       } else {
         // Try to get from localStorage as backup
         const storedUser = localStorage.getItem('vendor_user');
@@ -57,6 +64,10 @@ const VendorLayout = ({ children }) => {
           try {
             const parsedUser = JSON.parse(storedUser);
             setUser(parsedUser);
+            // Set delivery model from stored user data
+            if (parsedUser.vendorInfo?.deliveryModel) {
+              setDeliveryModel(parsedUser.vendorInfo.deliveryModel);
+            }
           } catch (error) {
             console.error('Error parsing stored user data:', error);
           }
@@ -86,6 +97,48 @@ const VendorLayout = ({ children }) => {
       console.error("Logout error:", error);
       // Force logout even if API call fails
       window.location.href = "/login";
+    }
+  };
+
+  const handleToggleDelivery = async () => {
+    if (isTogglingDelivery) return;
+    
+    try {
+      setIsTogglingDelivery(true);
+      const newDeliveryModel = deliveryModel === 'lalaji_network' ? 'self_delivery' : 'lalaji_network';
+      
+      // Update via API
+      const token = localStorage.getItem('vendor_token');
+      const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3000/api'}/vendor/profile`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          vendorInfo: {
+            ...user?.vendorInfo,
+            deliveryModel: newDeliveryModel
+          }
+        })
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setDeliveryModel(newDeliveryModel);
+        
+        // Update user data in state and localStorage
+        const updatedUser = { ...user, vendorInfo: { ...user?.vendorInfo, deliveryModel: newDeliveryModel } };
+        setUser(updatedUser);
+        localStorage.setItem('vendor_user', JSON.stringify(updatedUser));
+      } else {
+        throw new Error('Failed to update delivery model');
+      }
+    } catch (error) {
+      console.error('Toggle delivery error:', error);
+      alert('Failed to update delivery model. Please try again.');
+    } finally {
+      setIsTogglingDelivery(false);
     }
   };
 
@@ -123,6 +176,9 @@ const VendorLayout = ({ children }) => {
               handleLogout={handleLogout}
               collapsed={false}
               isMobile={true}
+              deliveryModel={deliveryModel}
+              onToggleDelivery={handleToggleDelivery}
+              isTogglingDelivery={isTogglingDelivery}
             />
           </div>
         </div>
@@ -139,6 +195,9 @@ const VendorLayout = ({ children }) => {
           collapsed={sidebarCollapsed}
           onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)}
           isMobile={false}
+          deliveryModel={deliveryModel}
+          onToggleDelivery={handleToggleDelivery}
+          isTogglingDelivery={isTogglingDelivery}
         />
       </div>
 
@@ -194,7 +253,7 @@ const VendorLayout = ({ children }) => {
 };
 
 // Sidebar component
-const SidebarContent = ({ navigation, onClose, isActive, handleLogout, collapsed, onToggleCollapse, isMobile }) => {
+const SidebarContent = ({ navigation, onClose, isActive, handleLogout, collapsed, onToggleCollapse, isMobile, deliveryModel, onToggleDelivery, isTogglingDelivery }) => {
   return (
     <div className="flex h-full flex-col gap-y-5 overflow-y-auto bg-white ">
       <div className="flex h-12 shrink-0 items-center justify-between px-4">
@@ -268,8 +327,65 @@ const SidebarContent = ({ navigation, onClose, isActive, handleLogout, collapsed
             </li>
           ))}
 
+          {/* Delivery Model Toggle */}
+          <li className="mt-auto mb-2">
+            {!collapsed ? (
+              <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg p-3 border border-blue-100">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-x-2">
+                    <TruckIcon className="h-4 w-4 text-blue-600" />
+                    <span className="text-xs font-semibold text-gray-700 font-['Gilroy']">Delivery Model</span>
+                  </div>
+                  <div className={`px-2 py-0.5 rounded-full text-xs font-medium ${
+                    deliveryModel === 'lalaji_network' 
+                      ? 'bg-blue-100 text-blue-700' 
+                      : 'bg-green-100 text-green-700'
+                  }`}>
+                    {deliveryModel === 'lalaji_network' ? 'Network' : 'Self'}
+                  </div>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-gray-600 font-['Gilroy']">
+                    {deliveryModel === 'lalaji_network' ? 'Lalaji Network' : 'Self Delivery'}
+                  </span>
+                  <button
+                    onClick={onToggleDelivery}
+                    disabled={isTogglingDelivery}
+                    className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${
+                      deliveryModel === 'self_delivery' ? 'bg-green-600' : 'bg-blue-600'
+                    } ${isTogglingDelivery ? 'opacity-50 cursor-not-allowed' : ''}`}
+                    title={`Switch to ${deliveryModel === 'lalaji_network' ? 'Self Delivery' : 'Lalaji Network'}`}
+                  >
+                    <span
+                      className={`inline-block h-3 w-3 transform rounded-full bg-white transition-transform ${
+                        deliveryModel === 'self_delivery' ? 'translate-x-5' : 'translate-x-1'
+                      }`}
+                    />
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="relative group">
+                <button
+                  onClick={onToggleDelivery}
+                  disabled={isTogglingDelivery}
+                  className={`w-full flex justify-center p-2 rounded-md transition-colors ${
+                    deliveryModel === 'lalaji_network' 
+                      ? 'bg-blue-50 hover:bg-blue-100' 
+                      : 'bg-green-50 hover:bg-green-100'
+                  } ${isTogglingDelivery ? 'opacity-50 cursor-not-allowed' : ''}`}
+                  title={`Delivery: ${deliveryModel === 'lalaji_network' ? 'Lalaji Network' : 'Self Delivery'} - Click to toggle`}
+                >
+                  <TruckIcon className={`h-5 w-5 ${
+                    deliveryModel === 'lalaji_network' ? 'text-blue-600' : 'text-green-600'
+                  }`} />
+                </button>
+              </div>
+            )}
+          </li>
+
           {/* Logout button */}
-          <li className="mt-auto">
+          <li>
             <button
               onClick={handleLogout}
               className={`group flex w-full gap-x-2 rounded-md p-2 text-sm leading-6 font-medium text-gray-700 hover:text-red-700 hover:bg-red-50 transition-all duration-200 font-['Gilroy']`}
