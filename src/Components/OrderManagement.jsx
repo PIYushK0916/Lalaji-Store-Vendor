@@ -509,6 +509,8 @@ const OrderManagement = () => {
     confirmed: orders.filter(o => o.status === 'confirmed').length,
     processing: orders.filter(o => ['processing', 'packed', 'shipped', 'out_for_delivery'].includes(o.status)).length,
     delivered: orders.filter(o => o.status === 'delivered').length,
+    assigned: orders.filter(o => o.delivery?.deliveryBoy).length,
+    unassigned: orders.filter(o => !o.delivery?.deliveryBoy && !['delivered', 'cancelled', 'returned'].includes(o.status)).length,
     todayRevenue: orders
       .filter(o => {
         const today = new Date().toDateString();
@@ -623,7 +625,7 @@ const OrderManagement = () => {
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-5">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-6">
         <div 
           onClick={() => setFilterStatus(filterStatus === 'pending' ? 'all' : 'pending')}
           className={`bg-white overflow-hidden rounded-lg border-2 cursor-pointer transition-all ${
@@ -690,6 +692,36 @@ const OrderManagement = () => {
             </div>
           </div>
         </div>
+        <div className="bg-white overflow-hidden rounded-lg border border-gray-200">
+          <div className="p-3">
+            <div className="flex items-center">
+              <div className="shrink-0">
+                <UserIcon className="h-5 w-5 text-green-600" />
+              </div>
+              <div className="ml-3 w-0 flex-1">
+                <dl>
+                  <dt className="text-xs font-medium text-gray-500 truncate">Assigned</dt>
+                  <dd className="text-base font-semibold text-gray-900">{orderStats.assigned}</dd>
+                </dl>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div className="bg-white overflow-hidden rounded-lg border border-orange-200">
+          <div className="p-3">
+            <div className="flex items-center">
+              <div className="shrink-0">
+                <ExclamationTriangleIcon className="h-5 w-5 text-orange-600" />
+              </div>
+              <div className="ml-3 w-0 flex-1">
+                <dl>
+                  <dt className="text-xs font-medium text-gray-500 truncate">Unassigned</dt>
+                  <dd className="text-base font-semibold text-gray-900">{orderStats.unassigned}</dd>
+                </dl>
+              </div>
+            </div>
+          </div>
+        </div>
         <div 
           onClick={() => setFilterStatus(filterStatus === 'delivered' ? 'all' : 'delivered')}
           className={`bg-white overflow-hidden rounded-lg border-2 cursor-pointer transition-all ${
@@ -707,21 +739,6 @@ const OrderManagement = () => {
                 <dl>
                   <dt className="text-xs font-medium text-gray-500 truncate">Delivered</dt>
                   <dd className="text-base font-semibold text-gray-900">{orderStats.delivered}</dd>
-                </dl>
-              </div>
-            </div>
-          </div>
-        </div>
-        <div className="bg-white overflow-hidden rounded-lg border border-gray-200">
-          <div className="p-3">
-            <div className="flex items-center">
-              <div className="shrink-0">
-                <BanknotesIcon className="h-5 w-5 text-purple-600" />
-              </div>
-              <div className="ml-3 w-0 flex-1">
-                <dl>
-                  <dt className="text-xs font-medium text-gray-500 truncate">Today&apos;s Revenue</dt>
-                  <dd className="text-base font-semibold text-gray-900">₹{orderStats.todayRevenue.toLocaleString()}</dd>
                 </dl>
               </div>
             </div>
@@ -1087,6 +1104,9 @@ const OrderManagement = () => {
                   Status
                 </th>
                 <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Delivery Status
+                </th>
+                <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Payment
                 </th>
                 <th className="px-4 py-2 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -1097,7 +1117,7 @@ const OrderManagement = () => {
             <tbody className="bg-white divide-y divide-gray-200">
               {filteredOrders.length === 0 ? (
                 <tr>
-                  <td colSpan="7" className="px-4 py-8 text-center text-sm text-gray-500">
+                  <td colSpan="8" className="px-4 py-8 text-center text-sm text-gray-500">
                     {searchTerm || filterStatus !== 'all' || filterPayment !== 'all'
                       ? 'No orders match your filters'
                       : 'No orders yet. Orders will appear here once customers start placing them.'}
@@ -1145,6 +1165,41 @@ const OrderManagement = () => {
                       <div className="flex items-center gap-1">
                         {getStatusBadge(order.status)}
                       </div>
+                    </td>
+                    <td className="px-4 py-3">
+                      {order.delivery?.deliveryBoy ? (
+                        <div className="flex flex-col gap-1">
+                          <div className="flex items-center text-xs">
+                            <div className="w-2 h-2 bg-green-500 rounded-full mr-1.5"></div>
+                            <span className="font-medium text-green-700">Assigned</span>
+                          </div>
+                          <div className="flex items-center text-xs text-gray-600">
+                            <UserIcon className="h-3 w-3 mr-1" />
+                            {order.delivery.deliveryBoyName}
+                          </div>
+                          {order.delivery.deliveryBoyPhone && (
+                            <div className="flex items-center text-xs text-gray-500">
+                              <PhoneIcon className="h-3 w-3 mr-1" />
+                              {order.delivery.deliveryBoyPhone}
+                            </div>
+                          )}
+                          <span className="text-xs text-gray-500">
+                            ({order.delivery.partner === 'lalaji_network' ? 'Lalaji Network' : 'Self Delivery'})
+                          </span>
+                        </div>
+                      ) : (
+                        <div className="flex flex-col gap-1">
+                          <div className="flex items-center text-xs">
+                            <div className="w-2 h-2 bg-yellow-500 rounded-full mr-1.5"></div>
+                            <span className="font-medium text-yellow-700">Unassigned</span>
+                          </div>
+                          <span className="text-xs text-gray-500">
+                            {['pending', 'confirmed', 'processing'].includes(order.status) 
+                              ? 'Waiting for order processing'
+                              : 'Awaiting delivery assignment'}
+                          </span>
+                        </div>
+                      )}
                     </td>
                     <td className="px-4 py-3 whitespace-nowrap">
                       {getPaymentStatusBadge(order.paymentStatus)}
