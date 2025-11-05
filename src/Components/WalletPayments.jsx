@@ -197,15 +197,15 @@ const WalletPayments = () => {
     };
 
     const icons = {
-      completed: <CheckCircleIcon className="h-4 w-4" />,
-      pending: <ClockIcon className="h-4 w-4" />,
-      processing: <ArrowPathIcon className="h-4 w-4 animate-spin" />,
-      failed: <XCircleIcon className="h-4 w-4" />,
-      rejected: <XCircleIcon className="h-4 w-4" />
+      completed: <CheckCircleIcon className="h-3 w-3" />,
+      pending: <ClockIcon className="h-3 w-3" />,
+      processing: <ArrowPathIcon className="h-3 w-3 animate-spin" />,
+      failed: <XCircleIcon className="h-3 w-3" />,
+      rejected: <XCircleIcon className="h-3 w-3" />
     };
 
     return (
-      <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium ${styles[status] || styles.pending}`}>
+      <span className={`inline-flex items-center gap-0.5 rounded-full px-2 py-0.5 text-xs font-medium ${styles[status] || styles.pending}`}>
         {icons[status]}
         {status.charAt(0).toUpperCase() + status.slice(1)}
       </span>
@@ -286,58 +286,58 @@ const WalletPayments = () => {
         </div>
       )}
 
-      {/* Stats Cards - Horizontal Layout like Order Management */}
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <div className="bg-white rounded-lg border border-gray-200 p-3">
-          <div className="flex items-center gap-2">
-            <div className="p-1.5 bg-green-100 rounded-lg">
-              <WalletIcon className="h-4 w-4 text-green-600" />
+      {/* Stats Cards - Compact Design */}
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+        <div className="bg-white rounded-lg border border-gray-200 p-2">
+          <div className="flex items-center gap-1.5">
+            <div className="p-1 bg-green-100 rounded">
+              <WalletIcon className="h-3.5 w-3.5 text-green-600" />
             </div>
             <div className="min-w-0">
               <p className="text-xs text-gray-500 truncate">Available</p>
-              <p className="text-base font-semibold text-gray-900 truncate">
+              <p className="text-sm font-semibold text-gray-900 truncate">
                 ₹{(earningsData?.availableBalance || 0).toLocaleString('en-IN')}
               </p>
             </div>
           </div>
         </div>
 
-        <div className="bg-white rounded-lg border border-gray-200 p-3">
-          <div className="flex items-center gap-2">
-            <div className="p-1.5 bg-yellow-100 rounded-lg">
-              <ClockIcon className="h-4 w-4 text-yellow-600" />
+        <div className="bg-white rounded-lg border border-gray-200 p-2">
+          <div className="flex items-center gap-1.5">
+            <div className="p-1 bg-yellow-100 rounded">
+              <ClockIcon className="h-3.5 w-3.5 text-yellow-600" />
             </div>
             <div className="min-w-0">
               <p className="text-xs text-gray-500 truncate">Pending</p>
-              <p className="text-base font-semibold text-gray-900 truncate">
+              <p className="text-sm font-semibold text-gray-900 truncate">
                 ₹{(earningsData?.pendingBalance || 0).toLocaleString('en-IN')}
               </p>
             </div>
           </div>
         </div>
 
-        <div className="bg-white rounded-lg border border-gray-200 p-3">
-          <div className="flex items-center gap-2">
-            <div className="p-1.5 bg-blue-100 rounded-lg">
-              <BanknotesIcon className="h-4 w-4 text-blue-600" />
+        <div className="bg-white rounded-lg border border-gray-200 p-2">
+          <div className="flex items-center gap-1.5">
+            <div className="p-1 bg-blue-100 rounded">
+              <BanknotesIcon className="h-3.5 w-3.5 text-blue-600" />
             </div>
             <div className="min-w-0">
               <p className="text-xs text-gray-500 truncate">Total</p>
-              <p className="text-base font-semibold text-gray-900 truncate">
+              <p className="text-sm font-semibold text-gray-900 truncate">
                 ₹{(earningsData?.totalEarnings || 0).toLocaleString('en-IN')}
               </p>
             </div>
           </div>
         </div>
 
-        <div className="bg-white rounded-lg border border-gray-200 p-3">
-          <div className="flex items-center gap-2">
-            <div className="p-1.5 bg-purple-100 rounded-lg">
-              <CalendarDaysIcon className="h-4 w-4 text-purple-600" />
+        <div className="bg-white rounded-lg border border-gray-200 p-2">
+          <div className="flex items-center gap-1.5">
+            <div className="p-1 bg-purple-100 rounded">
+              <CalendarDaysIcon className="h-3.5 w-3.5 text-purple-600" />
             </div>
             <div className="min-w-0">
               <p className="text-xs text-gray-500 truncate">This Month</p>
-              <p className="text-base font-semibold text-gray-900 truncate">
+              <p className="text-sm font-semibold text-gray-900 truncate">
                 ₹{(earningsData?.thisMonthEarnings || 0).toLocaleString('en-IN')}
               </p>
             </div>
@@ -348,22 +348,22 @@ const WalletPayments = () => {
       {/* Filters & Table Section */}
       <div className="bg-white rounded-lg border border-gray-200">
         {/* Filters Row */}
-        <div className="p-3 border-b border-gray-200">
-          <div className="flex flex-col sm:flex-row gap-2">
+        <div className="p-2 border-b border-gray-200">
+          <div className="flex flex-col sm:flex-row gap-1.5">
             <div className="relative flex-1">
-              <MagnifyingGlassIcon className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+              <MagnifyingGlassIcon className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400" />
               <input
                 type="text"
                 placeholder="Search by payout ID..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="block w-full rounded-md border-gray-300 pl-9 py-1.5 text-sm focus:border-blue-500 focus:ring-blue-500"
+                className="block w-full rounded-md border-gray-300 pl-8 py-1.5 text-xs focus:border-blue-500 focus:ring-blue-500"
               />
             </div>
             <select
               value={filterStatus}
               onChange={(e) => setFilterStatus(e.target.value)}
-              className="block w-full sm:w-40 rounded-md border-gray-300 py-1.5 text-sm focus:border-blue-500 focus:ring-blue-500"
+              className="block w-full sm:w-36 rounded-md border-gray-300 py-1.5 text-xs focus:border-blue-500 focus:ring-blue-500"
             >
               <option value="all">All Status</option>
               <option value="completed">Completed</option>
@@ -372,8 +372,8 @@ const WalletPayments = () => {
               <option value="failed">Failed</option>
               <option value="rejected">Rejected</option>
             </select>
-            <button className="inline-flex items-center justify-center rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50 whitespace-nowrap">
-              <DocumentArrowDownIcon className="h-4 w-4 sm:mr-2" />
+            <button className="inline-flex items-center justify-center rounded-md border border-gray-300 bg-white px-2.5 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50 whitespace-nowrap">
+              <DocumentArrowDownIcon className="h-3.5 w-3.5 sm:mr-1.5" />
               <span className="hidden sm:inline">Export</span>
             </button>
           </div>
@@ -384,22 +384,22 @@ const WalletPayments = () => {
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
-                <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                <th className="px-2 py-1.5 text-left text-xs font-medium text-gray-500 uppercase">
                   Payout ID
                 </th>
-                <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                <th className="px-2 py-1.5 text-left text-xs font-medium text-gray-500 uppercase">
                   Amount
                 </th>
-                <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                <th className="px-2 py-1.5 text-left text-xs font-medium text-gray-500 uppercase">
                   Status
                 </th>
-                <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                <th className="px-2 py-1.5 text-left text-xs font-medium text-gray-500 uppercase">
                   Date
                 </th>
-                <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                <th className="px-2 py-1.5 text-left text-xs font-medium text-gray-500 uppercase">
                   Method
                 </th>
-                <th className="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase">
+                <th className="px-2 py-1.5 text-right text-xs font-medium text-gray-500 uppercase">
                   Actions
                 </th>
               </tr>
@@ -408,42 +408,42 @@ const WalletPayments = () => {
               {filteredPayouts.length > 0 ? (
                 filteredPayouts.map((payout) => (
                   <tr key={payout._id} className="hover:bg-gray-50">
-                    <td className="px-3 py-2.5 whitespace-nowrap">
-                      <div className="text-sm font-medium text-gray-900">
+                    <td className="px-2 py-2 whitespace-nowrap">
+                      <div className="text-xs font-medium text-gray-900">
                         {payout._id?.slice(-8) || 'N/A'}
                       </div>
                     </td>
-                    <td className="px-3 py-2.5 whitespace-nowrap">
-                      <div className="text-sm font-medium text-gray-900">
+                    <td className="px-2 py-2 whitespace-nowrap">
+                      <div className="text-xs font-medium text-gray-900">
                         {formatCurrency(payout.amount)}
                       </div>
                     </td>
-                    <td className="px-3 py-2.5 whitespace-nowrap">
+                    <td className="px-2 py-2 whitespace-nowrap">
                       {getStatusBadge(payout.status)}
                     </td>
-                    <td className="px-3 py-2.5 whitespace-nowrap">
+                    <td className="px-2 py-2 whitespace-nowrap">
                       <div className="flex items-center text-xs text-gray-500">
-                        <CalendarDaysIcon className="h-3.5 w-3.5 mr-1.5" />
+                        <CalendarDaysIcon className="h-3 w-3 mr-1" />
                         {formatDate(payout.requestDate)}
                       </div>
                     </td>
-                    <td className="px-3 py-2.5 whitespace-nowrap text-sm text-gray-500">
+                    <td className="px-2 py-2 whitespace-nowrap text-xs text-gray-500">
                       {payout.method || 'Bank Transfer'}
                     </td>
-                    <td className="px-3 py-2.5 whitespace-nowrap text-right">
+                    <td className="px-2 py-2 whitespace-nowrap text-right">
                       <button
                         onClick={() => handleViewDetails(payout._id)}
-                        className="text-blue-600 hover:text-blue-900 p-1"
+                        className="text-blue-600 hover:text-blue-900 p-1 rounded hover:bg-blue-50"
                         title="View Details"
                       >
-                        <EyeIcon className="h-4 w-4" />
+                        <EyeIcon className="h-3.5 w-3.5" />
                       </button>
                     </td>
                   </tr>
                 ))
               ) : (
                 <tr>
-                  <td colSpan="6" className="px-3 py-6 text-center text-sm text-gray-500">
+                  <td colSpan="6" className="px-2 py-4 text-center text-xs text-gray-500">
                     No payout records found
                   </td>
                 </tr>
@@ -454,25 +454,25 @@ const WalletPayments = () => {
 
         {/* Pagination */}
         {filteredPayouts.length > 0 && (
-          <div className="px-3 py-2 border-t border-gray-200 flex items-center justify-between">
+          <div className="px-2 py-1.5 border-t border-gray-200 flex items-center justify-between">
             <div className="hidden sm:block">
               <p className="text-xs text-gray-700">
                 Page <span className="font-medium">{currentPage}</span> of{' '}
                 <span className="font-medium">{totalPages}</span>
               </p>
             </div>
-            <div className="flex gap-2 ml-auto">
+            <div className="flex gap-1.5 ml-auto">
               <button
                 onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
                 disabled={currentPage === 1}
-                className="inline-flex items-center px-2.5 py-1 border border-gray-300 rounded text-xs font-medium text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="inline-flex items-center px-2 py-1 border border-gray-300 rounded text-xs font-medium text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Previous
               </button>
               <button
                 onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
                 disabled={currentPage === totalPages}
-                className="inline-flex items-center px-2.5 py-1 border border-gray-300 rounded text-xs font-medium text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="inline-flex items-center px-2 py-1 border border-gray-300 rounded text-xs font-medium text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Next
               </button>
