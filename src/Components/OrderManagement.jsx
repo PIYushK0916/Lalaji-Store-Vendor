@@ -29,10 +29,17 @@ const OrderManagement = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
   const [filterPayment, setFilterPayment] = useState('all');
+  const [filterDate, setFilterDate] = useState('all');
+  const [customDateRange, setCustomDateRange] = useState({
+    startDate: '',
+    endDate: ''
+  });
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [showOrderDetails, setShowOrderDetails] = useState(false);
   const [statusDropdownOpen, setStatusDropdownOpen] = useState(false);
+  const [dateDropdownOpen, setDateDropdownOpen] = useState(false);
   const statusDropdownRef = useRef(null);
+  const dateDropdownRef = useRef(null);
 
   useEffect(() => {
     fetchOrders();
@@ -43,6 +50,9 @@ const OrderManagement = () => {
     const handleClickOutside = (event) => {
       if (statusDropdownRef.current && !statusDropdownRef.current.contains(event.target)) {
         setStatusDropdownOpen(false);
+      }
+      if (dateDropdownRef.current && !dateDropdownRef.current.contains(event.target)) {
+        setDateDropdownOpen(false);
       }
     };
 
@@ -93,7 +103,8 @@ const OrderManagement = () => {
           price: item.price || 0,
           total: item.total || (item.price * item.quantity) || 0,
           image: item.image,
-          sku: item.sku
+          sku: item.sku,
+          status: item.status || 'pending'
         })) || [],
         totalAmount: order.pricing?.total || order.totalAmount || 0,
         status: order.status || 'pending',
@@ -104,8 +115,25 @@ const OrderManagement = () => {
           ? `${order.deliveryAddress.address}${order.deliveryAddress.city ? ', ' + order.deliveryAddress.city : ''}${order.deliveryAddress.state ? ', ' + order.deliveryAddress.state : ''}${order.deliveryAddress.pincode ? ' - ' + order.deliveryAddress.pincode : ''}`
           : order.address || 'N/A',
         deliveryInstructions: order.specialInstructions || order.deliveryInstructions || '',
-        deliveryBoy: order.delivery?.deliveryBoy,
-        vendors: order.vendors,
+        delivery: {
+          partner: order.delivery?.deliveryPartner || 'pending',
+          deliveryBoy: order.delivery?.deliveryBoy,
+          deliveryBoyName: order.delivery?.deliveryBoy?.name || 'Not Assigned',
+          deliveryBoyPhone: order.delivery?.deliveryBoy?.phoneNumber || order.delivery?.deliveryBoy?.phone,
+          estimatedTime: order.delivery?.estimatedTime,
+          trackingNumber: order.delivery?.trackingInfo?.trackingNumber,
+          currentLocation: order.delivery?.trackingInfo?.currentLocation,
+          deliveredAt: order.delivery?.deliveredAt
+        },
+        vendors: order.vendors?.map(v => ({
+          vendor: v.vendor,
+          vendorName: v.vendor?.name || 'Unknown Vendor',
+          vendorBusinessName: v.vendor?.vendorInfo?.businessName,
+          deliveryModel: v.vendor?.vendorInfo?.deliveryModel,
+          items: v.items,
+          status: v.status,
+          subtotal: v.subtotal
+        })) || [],
         rawOrder: order // Keep original order for reference
       }));
       
@@ -150,14 +178,22 @@ const OrderManagement = () => {
 
   const getStatusIcon = (status) => {
     switch (status) {
-      case 'completed':
+      case 'delivered':
         return <CheckCircleIcon className="h-5 w-5 text-green-500" />;
-      case 'processing':
+      case 'out_for_delivery':
+      case 'shipped':
         return <TruckIcon className="h-5 w-5 text-blue-500" />;
+      case 'packed':
+      case 'processing':
+        return <TruckIcon className="h-5 w-5 text-indigo-500" />;
+      case 'confirmed':
+        return <CheckCircleIcon className="h-5 w-5 text-teal-500" />;
       case 'pending':
         return <ClockIcon className="h-5 w-5 text-yellow-500" />;
       case 'cancelled':
         return <XCircleIcon className="h-5 w-5 text-red-500" />;
+      case 'returned':
+        return <ArrowPathIcon className="h-5 w-5 text-orange-500" />;
       default:
         return <ClockIcon className="h-5 w-5 text-gray-500" />;
     }
@@ -165,30 +201,58 @@ const OrderManagement = () => {
 
   const getStatusBadge = (status) => {
     const styles = {
-      completed: 'bg-green-100 text-green-800',
-      processing: 'bg-blue-100 text-blue-800',
+      delivered: 'bg-green-100 text-green-800',
+      out_for_delivery: 'bg-blue-100 text-blue-800',
+      shipped: 'bg-blue-100 text-blue-800',
+      packed: 'bg-indigo-100 text-indigo-800',
+      processing: 'bg-indigo-100 text-indigo-800',
+      confirmed: 'bg-teal-100 text-teal-800',
       pending: 'bg-yellow-100 text-yellow-800',
-      cancelled: 'bg-red-100 text-red-800'
+      cancelled: 'bg-red-100 text-red-800',
+      returned: 'bg-orange-100 text-orange-800'
+    };
+
+    const labels = {
+      out_for_delivery: 'Out for Delivery',
+      delivered: 'Delivered',
+      shipped: 'Shipped',
+      packed: 'Packed',
+      processing: 'Processing',
+      confirmed: 'Confirmed',
+      pending: 'Pending',
+      cancelled: 'Cancelled',
+      returned: 'Returned'
     };
 
     return (
-      <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${styles[status]}`}>
-        {status.charAt(0).toUpperCase() + status.slice(1)}
+      <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${styles[status] || 'bg-gray-100 text-gray-800'}`}>
+        {labels[status] || status.charAt(0).toUpperCase() + status.slice(1)}
       </span>
     );
   };
 
   const getPaymentStatusBadge = (status) => {
     const styles = {
-      paid: 'bg-green-100 text-green-800',
+      completed: 'bg-green-100 text-green-800',
+      processing: 'bg-blue-100 text-blue-800',
       pending: 'bg-yellow-100 text-yellow-800',
       failed: 'bg-red-100 text-red-800',
-      refunded: 'bg-gray-100 text-gray-800'
+      refunded: 'bg-gray-100 text-gray-800',
+      partially_refunded: 'bg-orange-100 text-orange-800'
+    };
+
+    const labels = {
+      completed: 'Paid',
+      processing: 'Processing',
+      pending: 'Pending',
+      failed: 'Failed',
+      refunded: 'Refunded',
+      partially_refunded: 'Partially Refunded'
     };
 
     return (
-      <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${styles[status]}`}>
-        {status.charAt(0).toUpperCase() + status.slice(1)}
+      <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${styles[status] || 'bg-gray-100 text-gray-800'}`}>
+        {labels[status] || status.charAt(0).toUpperCase() + status.slice(1)}
       </span>
     );
   };
@@ -210,18 +274,61 @@ const OrderManagement = () => {
     const matchesStatus = filterStatus === 'all' || order.status === filterStatus;
     const matchesPayment = filterPayment === 'all' || order.paymentStatus === filterPayment;
     
-    return matchesSearch && matchesStatus && matchesPayment;
+    // Date filtering
+    let matchesDate = true;
+    if (filterDate !== 'all') {
+      const orderDate = new Date(order.orderDate);
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      
+      switch (filterDate) {
+        case 'today':
+          const todayEnd = new Date(today);
+          todayEnd.setHours(23, 59, 59, 999);
+          matchesDate = orderDate >= today && orderDate <= todayEnd;
+          break;
+        case 'yesterday':
+          const yesterday = new Date(today);
+          yesterday.setDate(yesterday.getDate() - 1);
+          const yesterdayEnd = new Date(yesterday);
+          yesterdayEnd.setHours(23, 59, 59, 999);
+          matchesDate = orderDate >= yesterday && orderDate <= yesterdayEnd;
+          break;
+        case 'week':
+          const weekAgo = new Date(today);
+          weekAgo.setDate(weekAgo.getDate() - 7);
+          matchesDate = orderDate >= weekAgo;
+          break;
+        case 'month':
+          const monthAgo = new Date(today);
+          monthAgo.setMonth(monthAgo.getMonth() - 1);
+          matchesDate = orderDate >= monthAgo;
+          break;
+        case 'custom':
+          if (customDateRange.startDate && customDateRange.endDate) {
+            const startDate = new Date(customDateRange.startDate);
+            startDate.setHours(0, 0, 0, 0);
+            const endDate = new Date(customDateRange.endDate);
+            endDate.setHours(23, 59, 59, 999);
+            matchesDate = orderDate >= startDate && orderDate <= endDate;
+          }
+          break;
+      }
+    }
+    
+    return matchesSearch && matchesStatus && matchesPayment && matchesDate;
   });
 
   const orderStats = {
     total: orders.length,
     pending: orders.filter(o => o.status === 'pending').length,
-    processing: orders.filter(o => o.status === 'processing').length,
-    completed: orders.filter(o => o.status === 'completed').length,
+    confirmed: orders.filter(o => o.status === 'confirmed').length,
+    processing: orders.filter(o => ['processing', 'packed', 'shipped', 'out_for_delivery'].includes(o.status)).length,
+    delivered: orders.filter(o => o.status === 'delivered').length,
     todayRevenue: orders
       .filter(o => {
         const today = new Date().toDateString();
-        return new Date(o.orderDate).toDateString() === today && o.status === 'completed';
+        return new Date(o.orderDate).toDateString() === today && o.status === 'delivered';
       })
       .reduce((sum, o) => sum + (o.totalAmount || 0), 0)
   };
@@ -302,7 +409,7 @@ const OrderManagement = () => {
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-4">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-5">
         <div 
           onClick={() => setFilterStatus(filterStatus === 'pending' ? 'all' : 'pending')}
           className={`bg-white overflow-hidden rounded-lg border-2 cursor-pointer transition-all ${
@@ -318,8 +425,30 @@ const OrderManagement = () => {
               </div>
               <div className="ml-3 w-0 flex-1">
                 <dl>
-                  <dt className="text-xs font-medium text-gray-500 truncate">Pending Orders</dt>
+                  <dt className="text-xs font-medium text-gray-500 truncate">Pending</dt>
                   <dd className="text-base font-semibold text-gray-900">{orderStats.pending}</dd>
+                </dl>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div 
+          onClick={() => setFilterStatus(filterStatus === 'confirmed' ? 'all' : 'confirmed')}
+          className={`bg-white overflow-hidden rounded-lg border-2 cursor-pointer transition-all ${
+            filterStatus === 'confirmed' 
+              ? 'border-teal-500 shadow-md' 
+              : 'border-gray-200 hover:border-teal-300 hover:shadow-sm'
+          }`}
+        >
+          <div className="p-3">
+            <div className="flex items-center">
+              <div className="shrink-0">
+                <CheckCircleIcon className="h-5 w-5 text-teal-600" />
+              </div>
+              <div className="ml-3 w-0 flex-1">
+                <dl>
+                  <dt className="text-xs font-medium text-gray-500 truncate">Confirmed</dt>
+                  <dd className="text-base font-semibold text-gray-900">{orderStats.confirmed}</dd>
                 </dl>
               </div>
             </div>
@@ -340,7 +469,7 @@ const OrderManagement = () => {
               </div>
               <div className="ml-3 w-0 flex-1">
                 <dl>
-                  <dt className="text-xs font-medium text-gray-500 truncate">Processing</dt>
+                  <dt className="text-xs font-medium text-gray-500 truncate">In Progress</dt>
                   <dd className="text-base font-semibold text-gray-900">{orderStats.processing}</dd>
                 </dl>
               </div>
@@ -348,9 +477,9 @@ const OrderManagement = () => {
           </div>
         </div>
         <div 
-          onClick={() => setFilterStatus(filterStatus === 'completed' ? 'all' : 'completed')}
+          onClick={() => setFilterStatus(filterStatus === 'delivered' ? 'all' : 'delivered')}
           className={`bg-white overflow-hidden rounded-lg border-2 cursor-pointer transition-all ${
-            filterStatus === 'completed' 
+            filterStatus === 'delivered' 
               ? 'border-green-500 shadow-md' 
               : 'border-gray-200 hover:border-green-300 hover:shadow-sm'
           }`}
@@ -362,8 +491,8 @@ const OrderManagement = () => {
               </div>
               <div className="ml-3 w-0 flex-1">
                 <dl>
-                  <dt className="text-xs font-medium text-gray-500 truncate">Completed</dt>
-                  <dd className="text-base font-semibold text-gray-900">{orderStats.completed}</dd>
+                  <dt className="text-xs font-medium text-gray-500 truncate">Delivered</dt>
+                  <dd className="text-base font-semibold text-gray-900">{orderStats.delivered}</dd>
                 </dl>
               </div>
             </div>
@@ -461,6 +590,17 @@ const OrderManagement = () => {
                 </div>
                 <div
                   onClick={() => {
+                    setFilterStatus('confirmed');
+                    setStatusDropdownOpen(false);
+                  }}
+                  className={`px-3 py-2 text-sm cursor-pointer hover:bg-blue-50 ${
+                    filterStatus === 'confirmed' ? 'bg-blue-50 text-blue-700 font-medium' : 'text-gray-700'
+                  }`}
+                >
+                  Confirmed
+                </div>
+                <div
+                  onClick={() => {
                     setFilterStatus('processing');
                     setStatusDropdownOpen(false);
                   }}
@@ -472,14 +612,47 @@ const OrderManagement = () => {
                 </div>
                 <div
                   onClick={() => {
-                    setFilterStatus('completed');
+                    setFilterStatus('packed');
                     setStatusDropdownOpen(false);
                   }}
                   className={`px-3 py-2 text-sm cursor-pointer hover:bg-blue-50 ${
-                    filterStatus === 'completed' ? 'bg-blue-50 text-blue-700 font-medium' : 'text-gray-700'
+                    filterStatus === 'packed' ? 'bg-blue-50 text-blue-700 font-medium' : 'text-gray-700'
                   }`}
                 >
-                  Completed
+                  Packed
+                </div>
+                <div
+                  onClick={() => {
+                    setFilterStatus('shipped');
+                    setStatusDropdownOpen(false);
+                  }}
+                  className={`px-3 py-2 text-sm cursor-pointer hover:bg-blue-50 ${
+                    filterStatus === 'shipped' ? 'bg-blue-50 text-blue-700 font-medium' : 'text-gray-700'
+                  }`}
+                >
+                  Shipped
+                </div>
+                <div
+                  onClick={() => {
+                    setFilterStatus('out_for_delivery');
+                    setStatusDropdownOpen(false);
+                  }}
+                  className={`px-3 py-2 text-sm cursor-pointer hover:bg-blue-50 ${
+                    filterStatus === 'out_for_delivery' ? 'bg-blue-50 text-blue-700 font-medium' : 'text-gray-700'
+                  }`}
+                >
+                  Out for Delivery
+                </div>
+                <div
+                  onClick={() => {
+                    setFilterStatus('delivered');
+                    setStatusDropdownOpen(false);
+                  }}
+                  className={`px-3 py-2 text-sm cursor-pointer hover:bg-blue-50 ${
+                    filterStatus === 'delivered' ? 'bg-blue-50 text-blue-700 font-medium' : 'text-gray-700'
+                  }`}
+                >
+                  Delivered
                 </div>
                 <div
                   onClick={() => {
@@ -491,6 +664,17 @@ const OrderManagement = () => {
                   }`}
                 >
                   Cancelled
+                </div>
+                <div
+                  onClick={() => {
+                    setFilterStatus('returned');
+                    setStatusDropdownOpen(false);
+                  }}
+                  className={`px-3 py-2 text-sm cursor-pointer hover:bg-blue-50 ${
+                    filterStatus === 'returned' ? 'bg-blue-50 text-blue-700 font-medium' : 'text-gray-700'
+                  }`}
+                >
+                  Returned
                 </div>
               </div>
             )}
@@ -504,20 +688,160 @@ const OrderManagement = () => {
               className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
             >
               <option value="all">All Payments</option>
-              <option value="paid">Paid</option>
-              <option value="pending">Payment Pending</option>
+              <option value="completed">Paid</option>
+              <option value="pending">Pending</option>
+              <option value="processing">Processing</option>
               <option value="failed">Failed</option>
               <option value="refunded">Refunded</option>
+              <option value="partially_refunded">Partially Refunded</option>
             </select>
           </div>
 
+          {/* Date Filter Dropdown */}
+          <div className="w-full sm:w-48 relative" ref={dateDropdownRef}>
+            <button
+              onClick={() => setDateDropdownOpen(!dateDropdownOpen)}
+              className="w-full flex items-center justify-between rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+            >
+              <div className="flex items-center">
+                <CalendarDaysIcon className="h-4 w-4 text-gray-400 mr-2" />
+                <span className="truncate">
+                  {filterDate === 'all' ? 'All Time' : 
+                   filterDate === 'today' ? 'Today' :
+                   filterDate === 'yesterday' ? 'Yesterday' :
+                   filterDate === 'week' ? 'Last 7 Days' :
+                   filterDate === 'month' ? 'Last 30 Days' :
+                   filterDate === 'custom' ? 'Custom Range' : 'All Time'}
+                </span>
+              </div>
+              <ChevronDownIcon 
+                className={`h-4 w-4 text-gray-400 transition-transform ${
+                  dateDropdownOpen ? 'rotate-180' : ''
+                }`} 
+              />
+            </button>
+
+            {/* Dropdown Menu */}
+            {dateDropdownOpen && (
+              <div className="absolute z-10 mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg max-h-96 overflow-auto">
+                <div
+                  onClick={() => {
+                    setFilterDate('all');
+                    setDateDropdownOpen(false);
+                  }}
+                  className={`px-3 py-2 text-sm cursor-pointer hover:bg-blue-50 ${
+                    filterDate === 'all' ? 'bg-blue-50 text-blue-700 font-medium' : 'text-gray-700'
+                  }`}
+                >
+                  All Time
+                </div>
+                <div
+                  onClick={() => {
+                    setFilterDate('today');
+                    setDateDropdownOpen(false);
+                  }}
+                  className={`px-3 py-2 text-sm cursor-pointer hover:bg-blue-50 ${
+                    filterDate === 'today' ? 'bg-blue-50 text-blue-700 font-medium' : 'text-gray-700'
+                  }`}
+                >
+                  Today
+                </div>
+                <div
+                  onClick={() => {
+                    setFilterDate('yesterday');
+                    setDateDropdownOpen(false);
+                  }}
+                  className={`px-3 py-2 text-sm cursor-pointer hover:bg-blue-50 ${
+                    filterDate === 'yesterday' ? 'bg-blue-50 text-blue-700 font-medium' : 'text-gray-700'
+                  }`}
+                >
+                  Yesterday
+                </div>
+                <div
+                  onClick={() => {
+                    setFilterDate('week');
+                    setDateDropdownOpen(false);
+                  }}
+                  className={`px-3 py-2 text-sm cursor-pointer hover:bg-blue-50 ${
+                    filterDate === 'week' ? 'bg-blue-50 text-blue-700 font-medium' : 'text-gray-700'
+                  }`}
+                >
+                  Last 7 Days
+                </div>
+                <div
+                  onClick={() => {
+                    setFilterDate('month');
+                    setDateDropdownOpen(false);
+                  }}
+                  className={`px-3 py-2 text-sm cursor-pointer hover:bg-blue-50 ${
+                    filterDate === 'month' ? 'bg-blue-50 text-blue-700 font-medium' : 'text-gray-700'
+                  }`}
+                >
+                  Last 30 Days
+                </div>
+                <div className="border-t border-gray-200 my-1"></div>
+                <div
+                  onClick={() => {
+                    setFilterDate('custom');
+                  }}
+                  className={`px-3 py-2 text-sm cursor-pointer hover:bg-blue-50 ${
+                    filterDate === 'custom' ? 'bg-blue-50 text-blue-700 font-medium' : 'text-gray-700'
+                  }`}
+                >
+                  Custom Range
+                </div>
+                {filterDate === 'custom' && (
+                  <div className="px-3 py-3 border-t border-gray-200 bg-gray-50">
+                    <div className="space-y-2">
+                      <div>
+                        <label className="block text-xs font-medium text-gray-700 mb-1">
+                          Start Date
+                        </label>
+                        <input
+                          type="date"
+                          value={customDateRange.startDate}
+                          onChange={(e) => setCustomDateRange({...customDateRange, startDate: e.target.value})}
+                          className="block w-full rounded border-gray-300 text-xs focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-gray-700 mb-1">
+                          End Date
+                        </label>
+                        <input
+                          type="date"
+                          value={customDateRange.endDate}
+                          onChange={(e) => setCustomDateRange({...customDateRange, endDate: e.target.value})}
+                          className="block w-full rounded border-gray-300 text-xs focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                        />
+                      </div>
+                      <button
+                        onClick={() => {
+                          if (customDateRange.startDate && customDateRange.endDate) {
+                            setDateDropdownOpen(false);
+                          }
+                        }}
+                        disabled={!customDateRange.startDate || !customDateRange.endDate}
+                        className="w-full mt-2 inline-flex items-center justify-center rounded bg-blue-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        Apply
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
           {/* Clear Filters Button */}
-          {(searchTerm || filterStatus !== 'all' || filterPayment !== 'all') && (
+          {(searchTerm || filterStatus !== 'all' || filterPayment !== 'all' || filterDate !== 'all') && (
             <button
               onClick={() => {
                 setSearchTerm('');
                 setFilterStatus('all');
                 setFilterPayment('all');
+                setFilterDate('all');
+                setCustomDateRange({ startDate: '', endDate: '' });
               }}
               className="inline-flex items-center rounded-lg bg-gray-100 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-200"
             >
@@ -634,9 +958,80 @@ const OrderManagement = () => {
                             className="text-xs border-gray-300 rounded px-2 py-1 focus:ring-blue-500 focus:border-blue-500"
                           >
                             <option value="">Update Status</option>
-                            <option value="processing">Start Processing</option>
-                            <option value="completed">Mark Complete</option>
+                            <option value="confirmed">Confirm Order</option>
                             <option value="cancelled">Cancel</option>
+                          </select>
+                        )}
+                        {order.status === 'confirmed' && (
+                          <select
+                            onChange={(e) => {
+                              if (e.target.value) {
+                                handleStatusUpdate(order.id, e.target.value);
+                                e.target.value = '';
+                              }
+                            }}
+                            className="text-xs border-gray-300 rounded px-2 py-1 focus:ring-blue-500 focus:border-blue-500"
+                          >
+                            <option value="">Update Status</option>
+                            <option value="processing">Start Processing</option>
+                            <option value="cancelled">Cancel</option>
+                          </select>
+                        )}
+                        {order.status === 'processing' && (
+                          <select
+                            onChange={(e) => {
+                              if (e.target.value) {
+                                handleStatusUpdate(order.id, e.target.value);
+                                e.target.value = '';
+                              }
+                            }}
+                            className="text-xs border-gray-300 rounded px-2 py-1 focus:ring-blue-500 focus:border-blue-500"
+                          >
+                            <option value="">Update Status</option>
+                            <option value="packed">Mark as Packed</option>
+                            <option value="cancelled">Cancel</option>
+                          </select>
+                        )}
+                        {order.status === 'packed' && (
+                          <select
+                            onChange={(e) => {
+                              if (e.target.value) {
+                                handleStatusUpdate(order.id, e.target.value);
+                                e.target.value = '';
+                              }
+                            }}
+                            className="text-xs border-gray-300 rounded px-2 py-1 focus:ring-blue-500 focus:border-blue-500"
+                          >
+                            <option value="">Update Status</option>
+                            <option value="shipped">Mark as Shipped</option>
+                          </select>
+                        )}
+                        {order.status === 'shipped' && (
+                          <select
+                            onChange={(e) => {
+                              if (e.target.value) {
+                                handleStatusUpdate(order.id, e.target.value);
+                                e.target.value = '';
+                              }
+                            }}
+                            className="text-xs border-gray-300 rounded px-2 py-1 focus:ring-blue-500 focus:border-blue-500"
+                          >
+                            <option value="">Update Status</option>
+                            <option value="out_for_delivery">Out for Delivery</option>
+                          </select>
+                        )}
+                        {order.status === 'out_for_delivery' && (
+                          <select
+                            onChange={(e) => {
+                              if (e.target.value) {
+                                handleStatusUpdate(order.id, e.target.value);
+                                e.target.value = '';
+                              }
+                            }}
+                            className="text-xs border-gray-300 rounded px-2 py-1 focus:ring-blue-500 focus:border-blue-500"
+                          >
+                            <option value="">Update Status</option>
+                            <option value="delivered">Mark as Delivered</option>
                           </select>
                         )}
                       </div>
@@ -651,10 +1046,10 @@ const OrderManagement = () => {
 
       {/* Order Details Modal */}
       {showOrderDetails && selectedOrder && (
-        <div className="fixed inset-0 z-50 overflow-y-auto">
+        <div className="fixed inset-0 bg-black/50 z-50 overflow-y-auto">
           <div className="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
             <div 
-              className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" 
+              className="fixed inset-0 z-60 transition-opacity" 
               onClick={() => setShowOrderDetails(false)}
             ></div>
             
@@ -684,7 +1079,7 @@ const OrderManagement = () => {
                 {/* Status Overview */}
                 <div className="bg-white rounded-lg border border-gray-200 p-4">
                   <h4 className="text-sm font-semibold text-gray-900 mb-3">Order Status</h4>
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-3 gap-4">
                     <div>
                       <span className="text-xs text-gray-500">Order Status</span>
                       <div className="mt-1 flex items-center gap-2">
@@ -696,6 +1091,16 @@ const OrderManagement = () => {
                       <span className="text-xs text-gray-500">Payment Status</span>
                       <div className="mt-1">
                         {getPaymentStatusBadge(selectedOrder.paymentStatus)}
+                      </div>
+                    </div>
+                    <div>
+                      <span className="text-xs text-gray-500">Payment Method</span>
+                      <div className="mt-1">
+                        <span className="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium bg-gray-100 text-gray-800">
+                          {selectedOrder.rawOrder?.payment?.method 
+                            ? selectedOrder.rawOrder.payment.method.toUpperCase()
+                            : 'COD'}
+                        </span>
                       </div>
                     </div>
                   </div>
@@ -778,15 +1183,167 @@ const OrderManagement = () => {
                 </div>
 
                 {/* Delivery Information */}
-                {selectedOrder.deliveryDate && (
-                  <div className="bg-white rounded-lg border border-gray-200 p-4">
-                    <h4 className="text-sm font-semibold text-gray-900 mb-3">Delivery Information</h4>
-                    <div className="flex items-center">
-                      <CalendarDaysIcon className="h-4 w-4 text-gray-400 mr-3" />
+                <div className="bg-white rounded-lg border border-gray-200 p-4">
+                  <h4 className="text-sm font-semibold text-gray-900 mb-3">Delivery Information</h4>
+                  <div className="space-y-3">
+                    {/* Delivery Partner Type */}
+                    <div className="flex items-start">
+                      <TruckIcon className="h-4 w-4 text-gray-400 mr-3 mt-0.5" />
                       <div>
-                        <div className="text-xs text-gray-500">Scheduled Delivery</div>
-                        <div className="text-sm font-medium text-gray-900">{formatDate(selectedOrder.deliveryDate)}</div>
+                        <div className="text-xs text-gray-500">Delivery Partner</div>
+                        <div className="text-sm font-medium text-gray-900">
+                          {selectedOrder.delivery?.partner === 'lalaji_network' ? (
+                            <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800">
+                              <svg className="h-3 w-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                                <path d="M10 2a8 8 0 100 16 8 8 0 000-16zM9 9a1 1 0 012 0v4a1 1 0 11-2 0V9zm1-4a1 1 0 110 2 1 1 0 010-2z" />
+                              </svg>
+                              Lalaji Network
+                            </span>
+                          ) : selectedOrder.delivery?.partner === 'vendor_self' ? (
+                            <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-purple-100 text-purple-800">
+                              <svg className="h-3 w-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                                <path d="M10 2a8 8 0 100 16 8 8 0 000-16zM9 9a1 1 0 012 0v4a1 1 0 11-2 0V9zm1-4a1 1 0 110 2 1 1 0 010-2z" />
+                              </svg>
+                              Vendor Self-Delivery
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-800">
+                              Pending Assignment
+                            </span>
+                          )}
+                        </div>
                       </div>
+                    </div>
+
+                    {/* Delivery Boy Info */}
+                    {selectedOrder.delivery?.deliveryBoy && (
+                      <div className="flex items-start">
+                        <UserIcon className="h-4 w-4 text-gray-400 mr-3 mt-0.5" />
+                        <div>
+                          <div className="text-xs text-gray-500">Delivery Person</div>
+                          <div className="text-sm font-medium text-gray-900">
+                            {selectedOrder.delivery.deliveryBoyName}
+                          </div>
+                          {selectedOrder.delivery.deliveryBoyPhone && (
+                            <div className="text-xs text-gray-500 mt-0.5">
+                              <PhoneIcon className="h-3 w-3 inline mr-1" />
+                              {selectedOrder.delivery.deliveryBoyPhone}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Scheduled Delivery */}
+                    {selectedOrder.deliveryDate && (
+                      <div className="flex items-center">
+                        <CalendarDaysIcon className="h-4 w-4 text-gray-400 mr-3" />
+                        <div>
+                          <div className="text-xs text-gray-500">Scheduled Delivery</div>
+                          <div className="text-sm font-medium text-gray-900">{formatDate(selectedOrder.deliveryDate)}</div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Tracking Number */}
+                    {selectedOrder.delivery?.trackingNumber && (
+                      <div className="flex items-center">
+                        <svg className="h-4 w-4 text-gray-400 mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 20l4-16m2 16l4-16M6 9h14M4 15h14" />
+                        </svg>
+                        <div>
+                          <div className="text-xs text-gray-500">Tracking Number</div>
+                          <div className="text-sm font-medium text-gray-900">{selectedOrder.delivery.trackingNumber}</div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Delivery Status Message */}
+                    {!selectedOrder.delivery?.deliveryBoy && (
+                      <div className="mt-2 p-3 bg-blue-50 rounded-lg border border-blue-200">
+                        <div className="flex items-start">
+                          <svg className="h-5 w-5 text-blue-600 mr-2 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                          </svg>
+                          <div className="flex-1">
+                            <p className="text-sm font-medium text-blue-900">Delivery Assignment Status</p>
+                            <p className="text-xs text-blue-800 mt-1">
+                              {selectedOrder.status === 'pending' ? (
+                                'Delivery partner will be assigned automatically when you confirm this order.'
+                              ) : selectedOrder.status === 'confirmed' ? (
+                                'Delivery partner will be assigned when order is marked as packed.'
+                              ) : selectedOrder.delivery?.partner === 'lalaji_network' ? (
+                                'Lalaji Network delivery partner will be assigned automatically based on location.'
+                              ) : selectedOrder.delivery?.partner === 'vendor_self' ? (
+                                'Assign a delivery person from your team to handle this delivery.'
+                              ) : (
+                                'Delivery partner assignment in progress...'
+                              )}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Delivery Boy Assignment Success */}
+                    {selectedOrder.delivery?.deliveryBoy && (
+                      <div className="mt-2 p-3 bg-green-50 rounded-lg border border-green-200">
+                        <div className="flex items-start">
+                          <CheckCircleIcon className="h-5 w-5 text-green-600 mr-2 mt-0.5" />
+                          <div className="flex-1">
+                            <p className="text-sm font-medium text-green-900">Delivery Partner Assigned</p>
+                            <p className="text-xs text-green-800 mt-1">
+                              {selectedOrder.delivery.partner === 'lalaji_network' 
+                                ? 'Order assigned to Lalaji Network delivery partner for efficient delivery.'
+                                : 'Order assigned to your self-delivery team member.'}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Vendor Information */}
+                {selectedOrder.vendors && selectedOrder.vendors.length > 0 && (
+                  <div className="bg-white rounded-lg border border-gray-200 p-4">
+                    <h4 className="text-sm font-semibold text-gray-900 mb-3">Vendor Information</h4>
+                    <div className="space-y-2">
+                      {selectedOrder.vendors.map((vendor, index) => (
+                        <div key={index} className="p-3 bg-gray-50 rounded border border-gray-200">
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <div className="text-sm font-medium text-gray-900">
+                                {vendor.vendorBusinessName || vendor.vendorName}
+                              </div>
+                              <div className="text-xs text-gray-500 mt-1">
+                                Delivery Model: {vendor.deliveryModel === 'self_delivery' ? (
+                                  <span className="text-purple-600 font-medium">Self-Delivery</span>
+                                ) : vendor.deliveryModel === 'lalaji_network' ? (
+                                  <span className="text-blue-600 font-medium">Lalaji Network</span>
+                                ) : (
+                                  <span className="text-gray-600">Not Set</span>
+                                )}
+                              </div>
+                            </div>
+                            <div className="text-right">
+                              <div className="text-xs text-gray-500">Status</div>
+                              <div className="text-sm font-medium">
+                                {vendor.status ? (
+                                  <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${
+                                    vendor.status === 'delivered' ? 'bg-green-100 text-green-800' :
+                                    vendor.status === 'packed' ? 'bg-blue-100 text-blue-800' :
+                                    vendor.status === 'confirmed' ? 'bg-indigo-100 text-indigo-800' :
+                                    'bg-yellow-100 text-yellow-800'
+                                  }`}>
+                                    {vendor.status.charAt(0).toUpperCase() + vendor.status.slice(1)}
+                                  </span>
+                                ) : 'Pending'}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
                     </div>
                   </div>
                 )}
@@ -796,6 +1353,30 @@ const OrderManagement = () => {
               <div className="bg-gray-50 px-6 py-3 border-t border-gray-200 flex justify-between items-center">
                 <div>
                   {selectedOrder.status === 'pending' && (
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => {
+                          handleStatusUpdate(selectedOrder.id, 'confirmed');
+                          setShowOrderDetails(false);
+                        }}
+                        className="inline-flex items-center rounded-lg bg-teal-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-teal-700"
+                      >
+                        <CheckCircleIcon className="h-3.5 w-3.5 mr-1.5" />
+                        Confirm Order
+                      </button>
+                      <button
+                        onClick={() => {
+                          handleStatusUpdate(selectedOrder.id, 'cancelled');
+                          setShowOrderDetails(false);
+                        }}
+                        className="inline-flex items-center rounded-lg bg-red-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-red-700"
+                      >
+                        <XCircleIcon className="h-3.5 w-3.5 mr-1.5" />
+                        Cancel Order
+                      </button>
+                    </div>
+                  )}
+                  {selectedOrder.status === 'confirmed' && (
                     <div className="flex gap-2">
                       <button
                         onClick={() => {
@@ -818,6 +1399,54 @@ const OrderManagement = () => {
                         Cancel Order
                       </button>
                     </div>
+                  )}
+                  {selectedOrder.status === 'processing' && (
+                    <button
+                      onClick={() => {
+                        handleStatusUpdate(selectedOrder.id, 'packed');
+                        setShowOrderDetails(false);
+                      }}
+                      className="inline-flex items-center rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-indigo-700"
+                    >
+                      <CheckCircleIcon className="h-3.5 w-3.5 mr-1.5" />
+                      Mark as Packed
+                    </button>
+                  )}
+                  {selectedOrder.status === 'packed' && (
+                    <button
+                      onClick={() => {
+                        handleStatusUpdate(selectedOrder.id, 'shipped');
+                        setShowOrderDetails(false);
+                      }}
+                      className="inline-flex items-center rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-blue-700"
+                    >
+                      <TruckIcon className="h-3.5 w-3.5 mr-1.5" />
+                      Mark as Shipped
+                    </button>
+                  )}
+                  {selectedOrder.status === 'shipped' && (
+                    <button
+                      onClick={() => {
+                        handleStatusUpdate(selectedOrder.id, 'out_for_delivery');
+                        setShowOrderDetails(false);
+                      }}
+                      className="inline-flex items-center rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-blue-700"
+                    >
+                      <TruckIcon className="h-3.5 w-3.5 mr-1.5" />
+                      Out for Delivery
+                    </button>
+                  )}
+                  {selectedOrder.status === 'out_for_delivery' && (
+                    <button
+                      onClick={() => {
+                        handleStatusUpdate(selectedOrder.id, 'delivered');
+                        setShowOrderDetails(false);
+                      }}
+                      className="inline-flex items-center rounded-lg bg-green-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-green-700"
+                    >
+                      <CheckCircleIcon className="h-3.5 w-3.5 mr-1.5" />
+                      Mark as Delivered
+                    </button>
                   )}
                 </div>
                 <button

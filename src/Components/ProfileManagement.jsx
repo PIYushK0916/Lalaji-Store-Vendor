@@ -10,18 +10,30 @@ import {
   CameraIcon,
   CheckCircleIcon,
   ExclamationTriangleIcon,
+  PencilIcon,
+  XMarkIcon,
+  DocumentTextIcon,
+  CreditCardIcon,
+  TruckIcon,
+  PhotoIcon,
+  ArrowPathIcon,
+  ShieldCheckIcon,
   EyeIcon,
-  EyeSlashIcon,
-  DocumentIcon,
-  ClockIcon
+  EyeSlashIcon
 } from '@heroicons/react/24/outline';
-import { getVendorProfile, updateVendorProfile, uploadDocument } from '../utils/api';
+import { DocumentIcon } from '@heroicons/react/24/solid';
+import { getVendorProfile, updateVendorProfile } from '../utils/api';
 
 const ProfileManagement = () => {
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState(null);
+  const [successMessage, setSuccessMessage] = useState(null);
+  const [editingSection, setEditingSection] = useState(null);
   const [activeTab, setActiveTab] = useState('basic');
+  const [isEditing, setIsEditing] = useState(false);
+  const [editSection, setEditSection] = useState(null);
   const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [showPassword, setShowPassword] = useState({
     current: false,
@@ -29,18 +41,24 @@ const ProfileManagement = () => {
     confirm: false
   });
 
+  const [storeImages, setStoreImages] = useState([]);
+  const [imagesToDelete, setImagesToDelete] = useState([]);
+  const [newImages, setNewImages] = useState([]);
+
   const [formData, setFormData] = useState({
     // Basic Information
     name: '',
     email: '',
-    phone: '',
-    alternatePhone: '',
+    phoneNumber: '',
     
     // Business Information
     businessName: '',
-    businessType: '',
     gstNumber: '',
     panNumber: '',
+    businessOwnerName: '',
+    contactPersonName: '',
+    mobileNumber: '',
+    alternateNumber: '',
     
     // Address Information
     address: '',
@@ -52,7 +70,8 @@ const ProfileManagement = () => {
     bankName: '',
     accountNumber: '',
     ifscCode: '',
-    accountHolderName: ''
+    accountHolderName: '',
+    upiId: ''
   });
 
   const [passwordData, setPasswordData] = useState({
@@ -69,18 +88,6 @@ const ProfileManagement = () => {
     businessLicense: null
   });
 
-  const businessTypes = [
-    'Grocery Store',
-    'Supermarket',
-    'Organic Store',
-    'Specialty Food',
-    'Bakery',
-    'Dairy',
-    'Meat Shop',
-    'Fruit & Vegetable Vendor',
-    'Other'
-  ];
-
   const states = [
     'Andhra Pradesh', 'Arunachal Pradesh', 'Assam', 'Bihar', 'Chhattisgarh', 'Goa',
     'Gujarat', 'Haryana', 'Himachal Pradesh', 'Jharkhand', 'Karnataka', 'Kerala',
@@ -89,147 +96,253 @@ const ProfileManagement = () => {
     'Tripura', 'Uttar Pradesh', 'Uttarakhand', 'West Bengal'
   ];
 
+  const businessTypes = [
+    'Retail Store',
+    'Wholesale',
+    'Restaurant',
+    'Cafe',
+    'Grocery Store',
+    'Supermarket',
+    'Pharmacy',
+    'Electronics Store',
+    'Clothing Store',
+    'Other'
+  ];
+
   useEffect(() => {
     fetchProfile();
   }, []);
 
-  const fetchProfile = async () => {
+  const fetchProfile = async (isRefresh = false) => {
     try {
-      setLoading(true);
-      const data = await getVendorProfile();
-      setProfile(data);
+      if (isRefresh) {
+        setRefreshing(true);
+      } else {
+        setLoading(true);
+      }
+      setError(null);
+      
+      const response = await getVendorProfile();
+      console.log('Vendor Profile Response:', response);
+      
+      const profileData = response.data || response;
+      setProfile(profileData);
+      
+      // Set form data from profile
       setFormData({
-        name: data.name || '',
-        email: data.email || '',
-        phone: data.phone || '',
-        alternatePhone: data.alternatePhone || '',
-        businessName: data.businessName || '',
-        businessType: data.businessType || '',
-        gstNumber: data.gstNumber || '',
-        panNumber: data.panNumber || '',
-        address: data.address || '',
-        city: data.city || '',
-        state: data.state || '',
-        pincode: data.pincode || '',
-        bankName: data.bankName || '',
-        accountNumber: data.accountNumber || '',
-        ifscCode: data.ifscCode || '',
-        accountHolderName: data.accountHolderName || ''
+        name: profileData.name || '',
+        email: profileData.email || '',
+        phoneNumber: profileData.phoneNumber || '',
+        businessName: profileData.vendorInfo?.businessName || '',
+        gstNumber: profileData.vendorInfo?.gstNumber || '',
+        panNumber: profileData.vendorInfo?.panNumber || '',
+        businessOwnerName: profileData.vendorInfo?.businessOwnerName || '',
+        contactPersonName: profileData.vendorInfo?.contactPersonName || '',
+        mobileNumber: profileData.vendorInfo?.mobileNumber || '',
+        alternateNumber: profileData.vendorInfo?.alternateNumber || '',
+        address: profileData.vendorInfo?.businessAddress?.address || '',
+        city: profileData.vendorInfo?.businessAddress?.city || '',
+        state: profileData.vendorInfo?.businessAddress?.state || '',
+        pincode: profileData.vendorInfo?.businessAddress?.pincode || '',
+        bankName: profileData.vendorInfo?.bankDetails?.bankName || '',
+        accountNumber: profileData.vendorInfo?.bankDetails?.accountNumber || '',
+        ifscCode: profileData.vendorInfo?.bankDetails?.ifsc || '',
+        accountHolderName: profileData.vendorInfo?.bankDetails?.accountHolderName || '',
+        upiId: profileData.vendorInfo?.bankDetails?.upiId || ''
       });
+      
+      // Set store images
+      setStoreImages(profileData.vendorInfo?.storeImages || []);
+      setImagesToDelete([]);
+      setNewImages([]);
     } catch (err) {
-      setError(err.message);
-      // Mock data for demonstration
-      setProfile({
-        id: 'VEN-001',
-        name: 'Rajesh Kumar',
-        email: 'rajesh@freshstore.com',
-        phone: '+91 98765 43210',
-        alternatePhone: '+91 87654 32109',
-        businessName: 'Fresh Store',
-        businessType: 'Grocery Store',
-        gstNumber: '29ABCDE1234F1Z5',
-        panNumber: 'ABCDE1234F',
-        address: '123 Main Street, Sector 15',
-        city: 'Gurgaon',
-        state: 'Haryana',
-        pincode: '122001',
-        bankName: 'State Bank of India',
-        accountNumber: '1234567890',
-        ifscCode: 'SBIN0001234',
-        accountHolderName: 'Rajesh Kumar',
-        verificationStatus: {
-          email: true,
-          phone: true,
-          pan: true,
-          gst: false,
-          bank: true
-        },
-        profilePhoto: '/api/placeholder/100/100',
-        joinedDate: '2023-06-15T10:00:00Z',
-        lastLogin: '2024-01-15T14:30:00Z'
-      });
-      setFormData({
-        name: 'Rajesh Kumar',
-        email: 'rajesh@freshstore.com',
-        phone: '+91 98765 43210',
-        alternatePhone: '+91 87654 32109',
-        businessName: 'Fresh Store',
-        businessType: 'Grocery Store',
-        gstNumber: '29ABCDE1234F1Z5',
-        panNumber: 'ABCDE1234F',
-        address: '123 Main Street, Sector 15',
-        city: 'Gurgaon',
-        state: 'Haryana',
-        pincode: '122001',
-        bankName: 'State Bank of India',
-        accountNumber: '1234567890',
-        ifscCode: 'SBIN0001234',
-        accountHolderName: 'Rajesh Kumar'
-      });
+      console.error('Error fetching profile:', err);
+      setError(err.message || 'Failed to load profile');
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      await updateVendorProfile(formData);
-      setProfile({ ...profile, ...formData });
-      alert('Profile updated successfully!');
+      setError(null);
+      setSuccessMessage(null);
+      
+      // Prepare update data based on edited section
+      const updateData = {
+        name: formData.name,
+        email: formData.email,
+        vendorInfo: {
+          businessName: formData.businessName,
+          gstNumber: formData.gstNumber,
+          panNumber: formData.panNumber,
+          businessOwnerName: formData.businessOwnerName,
+          contactPersonName: formData.contactPersonName,
+          mobileNumber: formData.mobileNumber,
+          alternateNumber: formData.alternateNumber,
+          businessAddress: {
+            address: formData.address,
+            city: formData.city,
+            state: formData.state,
+            pincode: formData.pincode,
+            coordinates: profile?.vendorInfo?.businessAddress?.coordinates || {
+              latitude: 0,
+              longitude: 0
+            }
+          },
+          bankDetails: {
+            bankName: formData.bankName,
+            accountNumber: formData.accountNumber,
+            ifsc: formData.ifscCode,
+            accountHolderName: formData.accountHolderName,
+            upiId: formData.upiId,
+            qrUpload: profile?.vendorInfo?.bankDetails?.qrUpload || null
+          }
+        }
+      };
+      
+      const response = await updateVendorProfile(updateData);
+      setProfile(response.data || response);
+      setIsEditing(false);
+      setEditSection(null);
+      setSuccessMessage('Profile updated successfully!');
+      setTimeout(() => setSuccessMessage(null), 5000);
+      
+      // Refresh profile data
+      fetchProfile(true);
     } catch (err) {
-      setError(err.message);
+      console.error('Update profile error:', err);
+      setError(err.message || 'Failed to update profile');
+      setTimeout(() => setError(null), 5000);
+    }
+  };
+
+  const handleCancel = () => {
+    setIsEditing(false);
+    setEditSection(null);
+    setActiveTab('basic');
+    // Reset form data to profile data
+    if (profile) {
+      setFormData({
+        name: profile.name || '',
+        email: profile.email || '',
+        phoneNumber: profile.phoneNumber || '',
+        businessName: profile.vendorInfo?.businessName || '',
+        gstNumber: profile.vendorInfo?.gstNumber || '',
+        panNumber: profile.vendorInfo?.panNumber || '',
+        businessOwnerName: profile.vendorInfo?.businessOwnerName || '',
+        contactPersonName: profile.vendorInfo?.contactPersonName || '',
+        mobileNumber: profile.vendorInfo?.mobileNumber || '',
+        alternateNumber: profile.vendorInfo?.alternateNumber || '',
+        address: profile.vendorInfo?.businessAddress?.address || '',
+        city: profile.vendorInfo?.businessAddress?.city || '',
+        state: profile.vendorInfo?.businessAddress?.state || '',
+        pincode: profile.vendorInfo?.businessAddress?.pincode || '',
+        bankName: profile.vendorInfo?.bankDetails?.bankName || '',
+        accountNumber: profile.vendorInfo?.bankDetails?.accountNumber || '',
+        ifscCode: profile.vendorInfo?.bankDetails?.ifsc || '',
+        accountHolderName: profile.vendorInfo?.bankDetails?.accountHolderName || '',
+        upiId: profile.vendorInfo?.bankDetails?.upiId || ''
+      });
+      setStoreImages(profile.vendorInfo?.storeImages || []);
+      setImagesToDelete([]);
+      setNewImages([]);
+    }
+  };
+
+  const handleImageDelete = (imageUrl) => {
+    setImagesToDelete([...imagesToDelete, imageUrl]);
+    setStoreImages(storeImages.filter(img => img !== imageUrl));
+  };
+
+  const handleImageAdd = (e) => {
+    const files = Array.from(e.target.files);
+    const newImagePreviews = files.map(file => ({
+      file,
+      preview: URL.createObjectURL(file)
+    }));
+    setNewImages([...newImages, ...newImagePreviews]);
+  };
+
+  const handleImageRemove = (index) => {
+    const updatedImages = [...newImages];
+    URL.revokeObjectURL(updatedImages[index].preview);
+    updatedImages.splice(index, 1);
+    setNewImages(updatedImages);
+  };
+
+  const startEdit = (section) => {
+    setEditSection(section);
+    setIsEditing(true);
+  };
+
+  const handleFileUpload = (docKey, file) => {
+    if (file) {
+      setDocuments({
+        ...documents,
+        [docKey]: file
+      });
+      setSuccessMessage(`${docKey} uploaded successfully`);
+      setTimeout(() => setSuccessMessage(null), 3000);
     }
   };
 
   const handlePasswordChange = async (e) => {
     e.preventDefault();
+    
     if (passwordData.newPassword !== passwordData.confirmPassword) {
       setError('New passwords do not match');
+      setTimeout(() => setError(null), 5000);
       return;
     }
+
+    if (passwordData.newPassword.length < 6) {
+      setError('Password must be at least 6 characters long');
+      setTimeout(() => setError(null), 5000);
+      return;
+    }
+
     try {
+      setError(null);
+      // Add your password update API call here
       // await updatePassword(passwordData);
+      
+      setSuccessMessage('Password updated successfully!');
       setShowPasswordModal(false);
-      setPasswordData({ currentPassword: '', newPassword: '', confirmPassword: '' });
-      alert('Password updated successfully!');
+      setPasswordData({
+        currentPassword: '',
+        newPassword: '',
+        confirmPassword: ''
+      });
+      setTimeout(() => setSuccessMessage(null), 5000);
     } catch (err) {
-      setError(err.message);
+      console.error('Password update error:', err);
+      setError(err.message || 'Failed to update password');
+      setTimeout(() => setError(null), 5000);
     }
-  };
-
-  const handleFileUpload = async (type, file) => {
-    try {
-      const uploadedDoc = await uploadDocument(type, file);
-      setDocuments({ ...documents, [type]: uploadedDoc });
-    } catch (err) {
-      setError(err.message);
-    }
-  };
-
-  const getVerificationIcon = (status) => {
-    if (status) {
-      return <CheckCircleIcon className="h-5 w-5 text-green-500" />;
-    }
-    return <ExclamationTriangleIcon className="h-5 w-5 text-yellow-500" />;
   };
 
   const getVerificationBadge = (status) => {
-    if (status) {
+    if (status === 'approved' || status === true) {
       return (
-        <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium bg-green-100 text-green-800">
+        <span className="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium bg-green-100 text-green-800">
+          <CheckCircleIcon className="h-3 w-3 mr-1" />
           Verified
         </span>
       );
     }
     return (
-      <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium bg-yellow-100 text-yellow-800">
+      <span className="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium bg-yellow-100 text-yellow-800">
+        <ExclamationTriangleIcon className="h-3 w-3 mr-1" />
         Pending
       </span>
     );
   };
 
   const formatDate = (dateString) => {
+    if (!dateString) return 'N/A';
     return new Date(dateString).toLocaleDateString('en-IN', {
       day: '2-digit',
       month: 'short',
@@ -237,6 +350,23 @@ const ProfileManagement = () => {
       hour: '2-digit',
       minute: '2-digit'
     });
+  };
+
+  const getDeliveryModelBadge = (model) => {
+    if (model === 'self_delivery') {
+      return (
+        <span className="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium bg-purple-100 text-purple-800">
+          <TruckIcon className="h-3 w-3 mr-1" />
+          Self-Delivery
+        </span>
+      );
+    }
+    return (
+      <span className="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium bg-blue-100 text-blue-800">
+        <TruckIcon className="h-3 w-3 mr-1" />
+        Lalaji Network
+      </span>
+    );
   };
 
   if (loading) {
@@ -248,141 +378,280 @@ const ProfileManagement = () => {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
+      {/* Success/Error Messages */}
+      {successMessage && (
+        <div className="fixed top-4 right-4 z-50 max-w-md animate-fade-in">
+          <div className="rounded-lg bg-green-50 p-4 border border-green-200 shadow-lg">
+            <div className="flex items-center">
+              <CheckCircleIcon className="h-5 w-5 text-green-600 mr-3" />
+              <div className="text-sm text-green-700">{successMessage}</div>
+              <button 
+                onClick={() => setSuccessMessage(null)}
+                className="ml-auto text-green-600 hover:text-green-800"
+              >
+                <XMarkIcon className="h-4 w-4" />
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {error && (
+        <div className="fixed top-4 right-4 z-50 max-w-md animate-fade-in">
+          <div className="rounded-lg bg-red-50 p-4 border border-red-200 shadow-lg">
+            <div className="flex items-center">
+              <ExclamationTriangleIcon className="h-5 w-5 text-red-600 mr-3" />
+              <div className="text-sm text-red-700">{error}</div>
+              <button 
+                onClick={() => setError(null)}
+                className="ml-auto text-red-600 hover:text-red-800"
+              >
+                <XMarkIcon className="h-4 w-4" />
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <div className="sm:flex sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Profile Management</h1>
-          <p className="mt-1 text-sm text-gray-500">
+          <h1 className="text-xl font-bold text-gray-900">Profile Management</h1>
+          <p className="mt-0.5 text-xs text-gray-500">
             Manage your account and business information
           </p>
         </div>
-        <div className="mt-4 sm:mt-0">
-          <button
-            onClick={() => setShowPasswordModal(true)}
-            className="inline-flex items-center rounded-md bg-blue-600 px-3 py-2 text-sm font-semibold text-white  hover:bg-blue-500"
-          >
-            Change Password
-          </button>
+        <div className="mt-3 sm:mt-0 flex space-x-2">
+          {!isEditing ? (
+            <>
+              <button 
+                onClick={() => setIsEditing(true)}
+                className="inline-flex items-center rounded-lg bg-blue-600 border border-blue-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-blue-700"
+              >
+                <PencilIcon className="h-3.5 w-3.5 mr-1.5" />
+                Edit Profile
+              </button>
+              <button 
+                onClick={() => fetchProfile(true)}
+                disabled={refreshing}
+                className="inline-flex items-center rounded-lg bg-white border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <ArrowPathIcon 
+                  className={`h-3.5 w-3.5 mr-1.5 ${refreshing ? 'animate-spin' : ''}`} 
+                />
+                {refreshing ? 'Refreshing...' : 'Refresh'}
+              </button>
+            </>
+          ) : (
+            <div className="inline-flex items-center rounded-lg bg-yellow-50 border border-yellow-200 px-3 py-1.5 text-xs font-medium text-yellow-800">
+              <PencilIcon className="h-3.5 w-3.5 mr-1.5" />
+              Editing Mode - Make changes and save
+            </div>
+          )}
         </div>
       </div>
 
       {/* Profile Overview Card */}
-      <div className="bg-white  rounded-lg p-6">
-        <div className="flex items-center space-x-6">
-          <div className="relative">
-            <div className="h-24 w-24 rounded-full bg-gray-100 flex items-center justify-center overflow-hidden">
-              {profile?.profilePhoto ? (
-                <img
-                  src={profile.profilePhoto}
-                  alt="Profile"
-                  className="h-full w-full object-cover"
-                />
-              ) : (
-                <UserIcon className="h-12 w-12 text-gray-400" />
-              )}
-            </div>
-            <button className="absolute -bottom-1 -right-1 h-8 w-8 rounded-full bg-blue-600 flex items-center justify-center text-white hover:bg-blue-700">
-              <CameraIcon className="h-4 w-4" />
-            </button>
-          </div>
-          <div className="flex-1">
-            <h3 className="text-xl font-bold text-gray-900">{profile?.name}</h3>
-            <p className="text-sm text-gray-500">{profile?.businessName}</p>
-            <div className="mt-2 flex items-center space-x-4">
-              <div className="flex items-center">
-                <EnvelopeIcon className="h-4 w-4 text-gray-400 mr-1" />
-                <span className="text-sm text-gray-600">{profile?.email}</span>
-                {getVerificationIcon(profile?.verificationStatus?.email)}
+      <div className="bg-white rounded-lg border border-gray-200">
+        <div className="p-4 border-b border-gray-200">
+          <div className="flex items-start space-x-4">
+            <div className="relative shrink-0">
+              <div className="h-16 w-16 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center overflow-hidden ring-2 ring-white">
+                {profile?.avatar ? (
+                  <img
+                    src={profile.avatar}
+                    alt="Profile"
+                    className="h-full w-full object-cover"
+                  />
+                ) : (
+                  <UserIcon className="h-8 w-8 text-white" />
+                )}
               </div>
-              <div className="flex items-center">
-                <PhoneIcon className="h-4 w-4 text-gray-400 mr-1" />
-                <span className="text-sm text-gray-600">{profile?.phone}</span>
-                {getVerificationIcon(profile?.verificationStatus?.phone)}
+              <button className="absolute -bottom-1 -right-1 h-6 w-6 rounded-full bg-blue-600 flex items-center justify-center text-white hover:bg-blue-700 shadow-lg border-2 border-white">
+                <CameraIcon className="h-3 w-3" />
+              </button>
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-start justify-between">
+                <div className="flex-1">
+                  <h3 className="text-base font-bold text-gray-900">{profile?.name}</h3>
+                  <p className="text-sm text-gray-600">{profile?.vendorInfo?.businessName}</p>
+                  <div className="mt-1.5 flex flex-wrap items-center gap-2">
+                    {profile?.vendorInfo?.isVerified ? (
+                      <span className="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium bg-green-100 text-green-800">
+                        <CheckCircleIcon className="h-3 w-3 mr-1" />
+                        Verified
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium bg-yellow-100 text-yellow-800">
+                        <ExclamationTriangleIcon className="h-3 w-3 mr-1" />
+                        Pending
+                      </span>
+                    )}
+                    {profile?.vendorInfo?.deliveryModel && getDeliveryModelBadge(profile.vendorInfo.deliveryModel)}
+                    {profile?.isActive && (
+                      <span className="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium bg-blue-100 text-blue-800">
+                        Active
+                      </span>
+                    )}
+                  </div>
+                </div>
+                <div className="text-right ml-4">
+                  <p className="text-xs text-gray-500">Vendor ID</p>
+                  <p className="text-xs font-mono font-semibold text-gray-900">
+                    {profile?.vendorInfo?.vendorDeliveryId || 'N/A'}
+                  </p>
+                </div>
               </div>
             </div>
           </div>
-          <div className="text-right">
-            <p className="text-sm text-gray-500">Member since</p>
-            <p className="text-sm font-medium text-gray-900">
-              {profile?.joinedDate ? formatDate(profile.joinedDate) : 'N/A'}
-            </p>
-            <p className="text-xs text-gray-500 mt-1">
-              Last login: {profile?.lastLogin ? formatDate(profile.lastLogin) : 'N/A'}
-            </p>
+        </div>
+
+        {/* Quick Info Grid */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 p-4">
+          <div className="flex items-center space-x-2">
+            <EnvelopeIcon className="h-4 w-4 text-gray-400 shrink-0" />
+            <div className="min-w-0">
+              <p className="text-xs text-gray-500">Email</p>
+              <p className="text-xs font-medium text-gray-900 truncate">{profile?.email}</p>
+            </div>
+          </div>
+          <div className="flex items-center space-x-2">
+            <PhoneIcon className="h-4 w-4 text-gray-400 shrink-0" />
+            <div className="min-w-0">
+              <p className="text-xs text-gray-500">Phone</p>
+              <p className="text-xs font-medium text-gray-900">{profile?.phoneNumber}</p>
+            </div>
+          </div>
+          <div className="flex items-center space-x-2">
+            <MapPinIcon className="h-4 w-4 text-gray-400 shrink-0" />
+            <div className="min-w-0">
+              <p className="text-xs text-gray-500">Location</p>
+              <p className="text-xs font-medium text-gray-900">{profile?.vendorInfo?.businessAddress?.city}, {profile?.vendorInfo?.businessAddress?.state}</p>
+            </div>
+          </div>
+          <div className="flex items-center space-x-2">
+            <IdentificationIcon className="h-4 w-4 text-gray-400 shrink-0" />
+            <div className="min-w-0">
+              <p className="text-xs text-gray-500">Joined</p>
+              <p className="text-xs font-medium text-gray-900">{profile?.createdAt ? new Date(profile.createdAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : 'N/A'}</p>
+            </div>
           </div>
         </div>
       </div>
 
       {/* Verification Status */}
-      <div className="bg-white  rounded-lg p-6">
-        <h3 className="text-lg font-medium text-gray-900 mb-4">Verification Status</h3>
-        <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-          <div className="flex items-center justify-between p-3 border rounded-lg">
-            <div className="flex items-center">
-              <EnvelopeIcon className="h-5 w-5 text-gray-400 mr-2" />
-              <span className="text-sm font-medium">Email</span>
+      <div className="bg-white rounded-lg border border-gray-200 p-3">
+        <div className="flex items-center justify-between mb-2">
+          <h3 className="text-xs font-semibold text-gray-900 uppercase tracking-wide">Document Verification</h3>
+        </div>
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+          {profile?.vendorInfo?.verificationDocuments?.map((doc, index) => (
+            <div key={index} className="flex items-center justify-between p-2 border border-zinc-200 rounded bg-gray-50">
+              <div className="flex items-center min-w-0">
+                <DocumentTextIcon className="h-3.5 w-3.5 text-gray-400 mr-1 shrink-0" />
+                <span className="text-xs font-medium text-gray-700 capitalize truncate">{doc.type}</span>
+              </div>
+              <div className="ml-1 shrink-0">
+                {getVerificationBadge(doc.status)}
+              </div>
             </div>
-            {getVerificationBadge(profile?.verificationStatus?.email)}
-          </div>
-          <div className="flex items-center justify-between p-3 border rounded-lg">
-            <div className="flex items-center">
-              <PhoneIcon className="h-5 w-5 text-gray-400 mr-2" />
-              <span className="text-sm font-medium">Phone</span>
-            </div>
-            {getVerificationBadge(profile?.verificationStatus?.phone)}
-          </div>
-          <div className="flex items-center justify-between p-3 border rounded-lg">
-            <div className="flex items-center">
-              <IdentificationIcon className="h-5 w-5 text-gray-400 mr-2" />
-              <span className="text-sm font-medium">PAN</span>
-            </div>
-            {getVerificationBadge(profile?.verificationStatus?.pan)}
-          </div>
-          <div className="flex items-center justify-between p-3 border rounded-lg">
-            <div className="flex items-center">
-              <DocumentIcon className="h-5 w-5 text-gray-400 mr-2" />
-              <span className="text-sm font-medium">GST</span>
-            </div>
-            {getVerificationBadge(profile?.verificationStatus?.gst)}
-          </div>
-          <div className="flex items-center justify-between p-3 border rounded-lg">
-            <div className="flex items-center">
-              <BanknotesIcon className="h-5 w-5 text-gray-400 mr-2" />
-              <span className="text-sm font-medium">Bank</span>
-            </div>
-            {getVerificationBadge(profile?.verificationStatus?.bank)}
-          </div>
+          ))}
         </div>
       </div>
 
+      {/* Store Images */}
+      {(storeImages.length > 0 || newImages.length > 0 || isEditing) && (
+        <div className="bg-white rounded-lg border border-gray-200 p-3">
+          <div className="flex items-center justify-between mb-2">
+            <h3 className="text-xs font-semibold text-gray-900 uppercase tracking-wide">Store Images</h3>
+            {isEditing && (
+              <label className="inline-flex items-center px-2 py-1 text-xs font-medium text-blue-600 bg-blue-50 rounded border border-blue-200 cursor-pointer hover:bg-blue-100">
+                <PhotoIcon className="h-3.5 w-3.5 mr-1" />
+                Add Images
+                <input
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  onChange={handleImageAdd}
+                  className="hidden"
+                />
+              </label>
+            )}
+          </div>
+          <div className="grid grid-cols-4 gap-2">
+            {/* Existing Images */}
+            {storeImages.map((image, index) => (
+              <div key={index} className="relative aspect-square rounded-lg overflow-hidden border border-gray-200 bg-gray-100 group">
+                <img
+                  src={image}
+                  alt={`Store ${index + 1}`}
+                  className="h-full w-full object-cover hover:scale-110 transition-transform duration-200"
+                />
+                {isEditing && (
+                  <button
+                    type="button"
+                    onClick={() => handleImageDelete(image)}
+                    className="absolute top-1 right-1 h-6 w-6 bg-red-600 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-700"
+                  >
+                    <XMarkIcon className="h-4 w-4" />
+                  </button>
+                )}
+              </div>
+            ))}
+            
+            {/* New Images Preview */}
+            {newImages.map((img, index) => (
+              <div key={`new-${index}`} className="relative aspect-square rounded-lg overflow-hidden border-2 border-dashed border-blue-300 bg-blue-50 group">
+                <img
+                  src={img.preview}
+                  alt={`New ${index + 1}`}
+                  className="h-full w-full object-cover"
+                />
+                <div className="absolute top-1 left-1 px-1.5 py-0.5 bg-blue-600 text-white text-xs rounded">
+                  New
+                </div>
+                <button
+                  type="button"
+                  onClick={() => handleImageRemove(index)}
+                  className="absolute top-1 right-1 h-6 w-6 bg-red-600 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-700"
+                >
+                  <XMarkIcon className="h-4 w-4" />
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Tabs */}
-      <div className="bg-white  rounded-lg">
+      <div className="bg-white rounded-lg border border-gray-200">
         <div className="border-b border-gray-200">
-          <nav className="-mb-px flex space-x-8 px-6">
+          <nav className="-mb-px flex space-x-4 px-4">
             <button
               onClick={() => setActiveTab('basic')}
-              className={`py-4 px-1 border-b-2 font-medium text-sm ${
+              className={`py-3 px-1 border-b-2 font-medium text-xs ${
                 activeTab === 'basic'
                   ? 'border-blue-500 text-blue-600'
                   : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
               }`}
             >
-              Basic Information
+              Basic Info
             </button>
             <button
               onClick={() => setActiveTab('business')}
-              className={`py-4 px-1 border-b-2 font-medium text-sm ${
+              className={`py-3 px-1 border-b-2 font-medium text-xs ${
                 activeTab === 'business'
                   ? 'border-blue-500 text-blue-600'
                   : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
               }`}
             >
-              Business Details
+              Business
             </button>
             <button
               onClick={() => setActiveTab('bank')}
-              className={`py-4 px-1 border-b-2 font-medium text-sm ${
+              className={`py-3 px-1 border-b-2 font-medium text-xs ${
                 activeTab === 'bank'
                   ? 'border-blue-500 text-blue-600'
                   : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
@@ -392,7 +661,7 @@ const ProfileManagement = () => {
             </button>
             <button
               onClick={() => setActiveTab('documents')}
-              className={`py-4 px-1 border-b-2 font-medium text-sm ${
+              className={`py-3 px-1 border-b-2 font-medium text-xs ${
                 activeTab === 'documents'
                   ? 'border-blue-500 text-blue-600'
                   : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
@@ -403,75 +672,105 @@ const ProfileManagement = () => {
           </nav>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-6">
+        <form onSubmit={handleSubmit} className="p-4">
           {/* Basic Information Tab */}
           {activeTab === 'basic' && (
-            <div className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">Full Name</label>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">Full Name</label>
                   <input
                     type="text"
                     value={formData.name}
                     onChange={(e) => setFormData({...formData, name: e.target.value})}
-                    className="mt-1 block w-full rounded-md border-gray-300  focus:border-blue-500 focus:ring-blue-500"
+                    disabled={!isEditing}
+                    className="block w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 disabled:bg-gray-50 disabled:text-gray-500 disabled:cursor-not-allowed"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">Email</label>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">Email</label>
                   <input
                     type="email"
                     value={formData.email}
                     onChange={(e) => setFormData({...formData, email: e.target.value})}
-                    className="mt-1 block w-full rounded-md border-gray-300  focus:border-blue-500 focus:ring-blue-500"
+                    disabled={!isEditing}
+                    className="block w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 disabled:bg-gray-50 disabled:text-gray-500 disabled:cursor-not-allowed"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">Phone Number</label>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">Phone Number</label>
                   <input
                     type="tel"
-                    value={formData.phone}
-                    onChange={(e) => setFormData({...formData, phone: e.target.value})}
-                    className="mt-1 block w-full rounded-md border-gray-300  focus:border-blue-500 focus:ring-blue-500"
+                    value={formData.phoneNumber}
+                    onChange={(e) => setFormData({...formData, phoneNumber: e.target.value})}
+                    disabled={!isEditing}
+                    className="block w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 disabled:bg-gray-50 disabled:text-gray-500 disabled:cursor-not-allowed"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">Contact Person</label>
+                  <input
+                    type="text"
+                    value={formData.contactPersonName}
+                    onChange={(e) => setFormData({...formData, contactPersonName: e.target.value})}
+                    disabled={!isEditing}
+                    className="block w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 disabled:bg-gray-50 disabled:text-gray-500 disabled:cursor-not-allowed"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">Alternate Phone</label>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">Mobile Number</label>
                   <input
                     type="tel"
-                    value={formData.alternatePhone}
-                    onChange={(e) => setFormData({...formData, alternatePhone: e.target.value})}
-                    className="mt-1 block w-full rounded-md border-gray-300  focus:border-blue-500 focus:ring-blue-500"
+                    value={formData.mobileNumber}
+                    onChange={(e) => setFormData({...formData, mobileNumber: e.target.value})}
+                    disabled={!isEditing}
+                    className="block w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 disabled:bg-gray-50 disabled:text-gray-500 disabled:cursor-not-allowed"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">Alternate Number</label>
+                  <input
+                    type="tel"
+                    value={formData.alternateNumber}
+                    onChange={(e) => setFormData({...formData, alternateNumber: e.target.value})}
+                    disabled={!isEditing}
+                    className="block w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 disabled:bg-gray-50 disabled:text-gray-500 disabled:cursor-not-allowed"
                   />
                 </div>
               </div>
               
               <div>
-                <label className="block text-sm font-medium text-gray-700">Address</label>
+                <label className="block text-xs font-medium text-gray-700 mb-1">Address</label>
                 <textarea
-                  rows={3}
+                  rows={2}
                   value={formData.address}
                   onChange={(e) => setFormData({...formData, address: e.target.value})}
-                  className="mt-1 block w-full rounded-md border-gray-300  focus:border-blue-500 focus:ring-blue-500"
+                  disabled={!isEditing}
+                  className="block w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 disabled:bg-gray-50 disabled:text-gray-500 disabled:cursor-not-allowed"
                 />
               </div>
               
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">City</label>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">City</label>
                   <input
                     type="text"
                     value={formData.city}
                     onChange={(e) => setFormData({...formData, city: e.target.value})}
-                    className="mt-1 block w-full rounded-md border-gray-300  focus:border-blue-500 focus:ring-blue-500"
+                    disabled={!isEditing}
+                    className="block w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 disabled:bg-gray-50 disabled:text-gray-500 disabled:cursor-not-allowed"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">State</label>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">State</label>
                   <select
                     value={formData.state}
                     onChange={(e) => setFormData({...formData, state: e.target.value})}
-                    className="mt-1 block w-full rounded-md border-gray-300  focus:border-blue-500 focus:ring-blue-500"
+                    disabled={!isEditing}
+                    className="block w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 disabled:bg-gray-50 disabled:text-gray-500 disabled:cursor-not-allowed"
                   >
                     <option value="">Select State</option>
                     {states.map(state => (
@@ -480,12 +779,13 @@ const ProfileManagement = () => {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">PIN Code</label>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">PIN Code</label>
                   <input
                     type="text"
                     value={formData.pincode}
                     onChange={(e) => setFormData({...formData, pincode: e.target.value})}
-                    className="mt-1 block w-full rounded-md border-gray-300  focus:border-blue-500 focus:ring-blue-500"
+                    disabled={!isEditing}
+                    className="block w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 disabled:bg-gray-50 disabled:text-gray-500 disabled:cursor-not-allowed"
                   />
                 </div>
               </div>
@@ -494,23 +794,35 @@ const ProfileManagement = () => {
 
           {/* Business Details Tab */}
           {activeTab === 'business' && (
-            <div className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">Business Name</label>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">Business Name</label>
                   <input
                     type="text"
                     value={formData.businessName}
                     onChange={(e) => setFormData({...formData, businessName: e.target.value})}
-                    className="mt-1 block w-full rounded-md border-gray-300  focus:border-blue-500 focus:ring-blue-500"
+                    disabled={!isEditing}
+                    className="block w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 disabled:bg-gray-50 disabled:text-gray-500 disabled:cursor-not-allowed"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">Business Type</label>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">Business Owner</label>
+                  <input
+                    type="text"
+                    value={formData.businessOwnerName}
+                    onChange={(e) => setFormData({...formData, businessOwnerName: e.target.value})}
+                    disabled={!isEditing}
+                    className="block w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 disabled:bg-gray-50 disabled:text-gray-500 disabled:cursor-not-allowed"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">Business Type</label>
                   <select
                     value={formData.businessType}
                     onChange={(e) => setFormData({...formData, businessType: e.target.value})}
-                    className="mt-1 block w-full rounded-md border-gray-300  focus:border-blue-500 focus:ring-blue-500"
+                    disabled={!isEditing}
+                    className="block w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 disabled:bg-gray-50 disabled:text-gray-500 disabled:cursor-not-allowed"
                   >
                     <option value="">Select Business Type</option>
                     {businessTypes.map(type => (
@@ -518,25 +830,54 @@ const ProfileManagement = () => {
                     ))}
                   </select>
                 </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">GST Number</label>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">GST Number</label>
                   <input
                     type="text"
                     value={formData.gstNumber}
                     onChange={(e) => setFormData({...formData, gstNumber: e.target.value})}
-                    className="mt-1 block w-full rounded-md border-gray-300  focus:border-blue-500 focus:ring-blue-500"
+                    disabled={!isEditing}
+                    className="block w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 disabled:bg-gray-50 disabled:text-gray-500 disabled:cursor-not-allowed"
                     placeholder="29ABCDE1234F1Z5"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">PAN Number</label>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">PAN Number</label>
                   <input
                     type="text"
                     value={formData.panNumber}
                     onChange={(e) => setFormData({...formData, panNumber: e.target.value})}
-                    className="mt-1 block w-full rounded-md border-gray-300  focus:border-blue-500 focus:ring-blue-500"
+                    disabled={!isEditing}
+                    className="block w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 disabled:bg-gray-50 disabled:text-gray-500 disabled:cursor-not-allowed"
                     placeholder="ABCDE1234F"
                   />
+                </div>
+              </div>
+
+              <div className="border-t pt-3 mt-3">
+                <h4 className="text-xs font-semibold text-gray-900 uppercase tracking-wide mb-2">Delivery Information</h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">Delivery Model</label>
+                    <input
+                      type="text"
+                      value={profile?.vendorInfo?.deliveryModel === 'self_delivery' ? 'Self Delivery' : 'Lalaji Network'}
+                      disabled
+                      className="block w-full rounded-md border border-gray-300 px-3 py-2 bg-gray-50 text-sm text-gray-500 cursor-not-allowed"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">Verification Status</label>
+                    <input
+                      type="text"
+                      value={profile?.vendorInfo?.verificationStatus || 'N/A'}
+                      disabled
+                      className="block w-full rounded-md border border-gray-300 px-3 py-2 bg-gray-50 text-sm text-gray-500 capitalize cursor-not-allowed"
+                    />
+                  </div>
                 </div>
               </div>
             </div>
@@ -544,83 +885,108 @@ const ProfileManagement = () => {
 
           {/* Bank Details Tab */}
           {activeTab === 'bank' && (
-            <div className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">Bank Name</label>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">Bank Name</label>
                   <input
                     type="text"
                     value={formData.bankName}
                     onChange={(e) => setFormData({...formData, bankName: e.target.value})}
-                    className="mt-1 block w-full rounded-md border-gray-300  focus:border-blue-500 focus:ring-blue-500"
+                    disabled={!isEditing}
+                    className="block w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 disabled:bg-gray-50 disabled:text-gray-500 disabled:cursor-not-allowed"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">Account Holder Name</label>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">Account Holder Name</label>
                   <input
                     type="text"
                     value={formData.accountHolderName}
                     onChange={(e) => setFormData({...formData, accountHolderName: e.target.value})}
-                    className="mt-1 block w-full rounded-md border-gray-300  focus:border-blue-500 focus:ring-blue-500"
+                    disabled={!isEditing}
+                    className="block w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 disabled:bg-gray-50 disabled:text-gray-500 disabled:cursor-not-allowed"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">Account Number</label>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">Account Number</label>
                   <input
                     type="text"
                     value={formData.accountNumber}
                     onChange={(e) => setFormData({...formData, accountNumber: e.target.value})}
-                    className="mt-1 block w-full rounded-md border-gray-300  focus:border-blue-500 focus:ring-blue-500"
+                    disabled={!isEditing}
+                    className="block w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 disabled:bg-gray-50 disabled:text-gray-500 disabled:cursor-not-allowed"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">IFSC Code</label>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">IFSC Code</label>
                   <input
                     type="text"
                     value={formData.ifscCode}
                     onChange={(e) => setFormData({...formData, ifscCode: e.target.value})}
-                    className="mt-1 block w-full rounded-md border-gray-300  focus:border-blue-500 focus:ring-blue-500"
+                    disabled={!isEditing}
+                    className="block w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 disabled:bg-gray-50 disabled:text-gray-500 disabled:cursor-not-allowed"
                     placeholder="SBIN0001234"
                   />
                 </div>
+                <div className="md:col-span-2">
+                  <label className="block text-xs font-medium text-gray-700 mb-1">UPI ID</label>
+                  <input
+                    type="text"
+                    value={formData.upiId}
+                    onChange={(e) => setFormData({...formData, upiId: e.target.value})}
+                    disabled={!isEditing}
+                    className="block w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 disabled:bg-gray-50 disabled:text-gray-500 disabled:cursor-not-allowed"
+                    placeholder="name@upi"
+                  />
+                </div>
               </div>
+
+              {profile?.vendorInfo?.bankDetails?.qrUpload && (
+                <div className="border-t pt-3 mt-3">
+                  <h4 className="text-xs font-semibold text-gray-900 uppercase tracking-wide mb-2">Payment QR Code</h4>
+                  <div className="w-48 h-48 border rounded-lg overflow-hidden bg-gray-50">
+                    <img
+                      src={profile.vendorInfo.bankDetails.qrUpload}
+                      alt="QR Code"
+                      className="w-full h-full object-contain"
+                    />
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
           {/* Documents Tab */}
           {activeTab === 'documents' && (
-            <div className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {[
-                  { key: 'panCard', label: 'PAN Card', required: true },
-                  { key: 'gstCertificate', label: 'GST Certificate', required: false },
-                  { key: 'bankStatement', label: 'Bank Statement', required: true },
-                  { key: 'businessLicense', label: 'Business License', required: false }
-                ].map((doc) => (
-                  <div key={doc.key} className="border rounded-lg p-4">
+            <div className="space-y-3">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {profile?.vendorInfo?.verificationDocuments?.map((doc, index) => (
+                  <div key={index} className="border border-zinc-300 rounded-lg p-3">
                     <div className="flex items-center justify-between mb-2">
-                      <h4 className="text-sm font-medium text-gray-900">{doc.label}</h4>
-                      {doc.required && (
-                        <span className="text-xs text-red-500">Required</span>
-                      )}
+                      <h4 className="text-xs font-semibold text-gray-900 capitalize">{doc.type}</h4>
+                      {getVerificationBadge(doc.status)}
                     </div>
-                    <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center">
-                      <DocumentIcon className="mx-auto h-8 w-8 text-gray-400" />
-                      <p className="mt-2 text-sm text-gray-600">
-                        Click to upload or drag and drop
-                      </p>
-                      <p className="text-xs text-gray-500">PDF, PNG, JPG up to 10MB</p>
-                      <input
-                        type="file"
-                        accept=".pdf,.png,.jpg,.jpeg"
-                        onChange={(e) => handleFileUpload(doc.key, e.target.files[0])}
-                        className="hidden"
-                      />
-                    </div>
-                    {documents[doc.key] && (
-                      <div className="mt-2 flex items-center text-sm text-green-600">
-                        <CheckCircleIcon className="h-4 w-4 mr-1" />
-                        Document uploaded
+                    {doc.url && (
+                      <div className="border border-zinc-200 rounded-lg overflow-hidden bg-gray-50">
+                        {doc.url.toLowerCase().endsWith('.pdf') ? (
+                          <div className="h-32 flex items-center justify-center">
+                            <DocumentIcon className="h-12 w-12 text-gray-400" />
+                            <a 
+                              href={doc.url} 
+                              target="_blank" 
+                              rel="noopener noreferrer"
+                              className="ml-2 text-xs text-blue-600 hover:underline"
+                            >
+                              View PDF
+                            </a>
+                          </div>
+                        ) : (
+                          <img
+                            src={doc.url}
+                            alt={`${doc.type} document`}
+                            className="w-full h-32 object-cover"
+                          />
+                        )}
                       </div>
                     )}
                   </div>
@@ -629,20 +995,23 @@ const ProfileManagement = () => {
             </div>
           )}
 
-          <div className="flex justify-end space-x-3 pt-6">
-            <button
-              type="button"
-              className="rounded-md border border-gray-300 bg-white py-2 px-4 text-sm font-medium text-gray-700  hover:bg-gray-50"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              className="rounded-md border border-transparent bg-blue-600 py-2 px-4 text-sm font-medium text-white  hover:bg-blue-700"
-            >
-              Save Changes
-            </button>
-          </div>
+          {isEditing && (
+            <div className="flex justify-end space-x-2 pt-4 border-t">
+              <button
+                type="button"
+                onClick={handleCancel}
+                className="rounded-md border border-gray-300 bg-white py-1.5 px-3 text-xs font-medium text-gray-700 hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                className="rounded-md border border-transparent bg-blue-600 py-1.5 px-3 text-xs font-medium text-white hover:bg-blue-700"
+              >
+                Save Changes
+              </button>
+            </div>
+          )}
         </form>
       </div>
 
