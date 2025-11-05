@@ -257,7 +257,19 @@ export const requestPayout = async (amount) => {
 
 export const getPayouts = async (params = {}) => {
   const queryString = new URLSearchParams(params).toString();
-  return apiRequest(`/vendor/wallet/payouts${queryString ? `?${queryString}` : ''}`);
+  return apiRequest(`/vendor/payouts${queryString ? `?${queryString}` : ''}`);
+};
+
+export const getPayoutAnalytics = async () => {
+  return apiRequest('/vendor/payouts/analytics');
+};
+
+export const getPayoutDetails = async (payoutId) => {
+  return apiRequest(`/vendor/payouts/${payoutId}`);
+};
+
+export const getEarnings = async () => {
+  return apiRequest('/vendor/earnings');
 };
 
 // Analytics APIs
@@ -419,6 +431,27 @@ export const handleApiError = (error) => {
 };
 
 export default {
+  get: (endpoint, options = {}) => {
+    const params = options.params || {};
+    const queryString = new URLSearchParams(params).toString();
+    const url = queryString ? `${endpoint}?${queryString}` : endpoint;
+    return apiRequest(url, { method: 'GET' });
+  },
+  post: (endpoint, data) => {
+    return apiRequest(endpoint, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+  put: (endpoint, data) => {
+    return apiRequest(endpoint, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  },
+  delete: (endpoint) => {
+    return apiRequest(endpoint, { method: 'DELETE' });
+  },
   getDashboardData,
   getVendorStats,
   getProducts,
@@ -445,6 +478,9 @@ export default {
   getTransactions,
   requestPayout,
   getPayouts,
+  getPayoutAnalytics,
+  getPayoutDetails,
+  getEarnings,
   getAnalytics,
   getSalesReport,
   getProductAnalytics,
