@@ -13,7 +13,7 @@ import {
   XCircleIcon,
   ClockIcon
 } from '@heroicons/react/24/outline';
-import { getProducts, addProduct, updateProduct, deleteProduct } from '../utils/api';
+import { getProducts, addProduct, updateProduct, deleteProduct } from '../utils/product';
 
 const ProductManagement = () => {
   const [products, setProducts] = useState([]);
@@ -25,7 +25,9 @@ const ProductManagement = () => {
   const [filterStatus, setFilterStatus] = useState('all');
   const [filterCategory, setFilterCategory] = useState('all');
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage] = useState(10);
+  const [itemsPerPage] = useState(20);
+  const [totalProducts, setTotalProducts] = useState(0);
+  const [totalPages, setTotalPages] = useState(0);
 
   const [formData, setFormData] = useState({
     name: '',
@@ -51,18 +53,45 @@ const ProductManagement = () => {
     'Household'
   ];
 
+  // Debounce search to avoid too many API calls
   useEffect(() => {
-    fetchProducts();
-  }, []);
+    const debounceTimer = setTimeout(() => {
+      fetchProducts();
+    }, searchTerm ? 500 : 0); // 500ms delay for search, immediate for other changes
+
+    return () => clearTimeout(debounceTimer);
+  }, [currentPage, searchTerm, filterStatus, filterCategory]);
 
   const fetchProducts = async () => {
     try {
       setLoading(true);
-      const data = await getProducts();
-      setProducts(data || []);
+      setError(null);
+
+      // Build query parameters for API
+      const params = {
+        page: currentPage,
+        limit: itemsPerPage,
+        search: searchTerm,
+        status: filterStatus,
+        category: filterCategory
+      };
+
+      const response = await getProducts(params);
+
+      // Handle API response structure: { success, count, total, pagination: { page, pages }, data: [...] }
+      if (response?.success && response?.data) {
+        setProducts(response.data);
+        setTotalProducts(response.total || 0);
+        setTotalPages(response.pagination?.pages || 1);
+      } else {
+        // Fallback for unexpected response format
+        setProducts([]);
+        setTotalProducts(0);
+        setTotalPages(1);
+      }
     } catch (err) {
       setError(err.message);
-      // Mock data for demonstration
+      // Mock data for demonstration when API fails
       setProducts([
         {
           id: 1,
@@ -104,6 +133,8 @@ const ProductManagement = () => {
           revenue: 3015
         }
       ]);
+      setTotalProducts(3);
+      setTotalPages(1);
     } finally {
       setLoading(false);
     }
@@ -169,19 +200,25 @@ const ProductManagement = () => {
     setEditingProduct(null);
   };
 
-  const filteredProducts = products.filter(product => {
-    const matchesSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         product.sku.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesStatus = filterStatus === 'all' || product.status === filterStatus;
-    const matchesCategory = filterCategory === 'all' || product.category === filterCategory;
-    return matchesSearch && matchesStatus && matchesCategory;
-  });
+  // Reset to page 1 when search or filters change
+  const handleSearchChange = (value) => {
+    setSearchTerm(value);
+    setCurrentPage(1);
+  };
 
-  const totalPages = Math.ceil(filteredProducts.length / itemsPerPage);
-  const currentProducts = filteredProducts.slice(
-    (currentPage - 1) * itemsPerPage,
-    currentPage * itemsPerPage
-  );
+  const handleStatusChange = (value) => {
+    setFilterStatus(value);
+    setCurrentPage(1);
+  };
+
+  const handleCategoryChange = (value) => {
+    setFilterCategory(value);
+    setCurrentPage(1);
+  };
+
+  // Products are already filtered and paginated by the API
+  // No need for client-side filtering
+  const currentProducts = products;
 
   const getStatusIcon = (status) => {
     switch (status) {
@@ -237,7 +274,7 @@ const ProductManagement = () => {
         <div className="mt-4 sm:mt-0">
           <button
             onClick={() => setShowModal(true)}
-            className="inline-flex items-center rounded-md bg-blue-600 px-3 py-2 text-sm font-semibold text-white  hover:bg-blue-500"
+            className="inline-flex items-center rounded-md bg-blue-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-500"
           >
             <PlusIcon className="h-4 w-4 mr-2" />
             Add Product
@@ -246,7 +283,7 @@ const ProductManagement = () => {
       </div>
 
       {/* Filters */}
-      <div className="bg-white  rounded-lg p-6">
+      <div className="bg-white shadow rounded-lg p-6">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <div className="relative">
             <MagnifyingGlassIcon className="pointer-events-none absolute inset-y-0 left-0 h-full w-5 text-gray-400 pl-3" />
@@ -254,13 +291,13 @@ const ProductManagement = () => {
               type="text"
               placeholder="Search products..."
               value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
+              onChange={(e) => handleSearchChange(e.target.value)}
               className="block w-full rounded-lg border-gray-300 pl-10 focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
             />
           </div>
           <select
             value={filterStatus}
-            onChange={(e) => setFilterStatus(e.target.value)}
+            onChange={(e) => handleStatusChange(e.target.value)}
             className="block w-full rounded-lg border-gray-300 focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
           >
             <option value="all">All Status</option>
@@ -270,7 +307,7 @@ const ProductManagement = () => {
           </select>
           <select
             value={filterCategory}
-            onChange={(e) => setFilterCategory(e.target.value)}
+            onChange={(e) => handleCategoryChange(e.target.value)}
             className="block w-full rounded-lg border-gray-300 focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
           >
             <option value="all">All Categories</option>
@@ -286,7 +323,7 @@ const ProductManagement = () => {
       </div>
 
       {/* Products Table */}
-      <div className="bg-white  rounded-lg overflow-hidden">
+      <div className="bg-white shadow rounded-lg overflow-hidden">
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
@@ -316,15 +353,15 @@ const ProductManagement = () => {
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
               {currentProducts.map((product) => (
-                <tr key={product.id} className="hover:bg-gray-50">
+                <tr key={product._id || product.id} className="hover:bg-gray-50">
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="flex items-center">
                       <div className="flex-shrink-0 h-12 w-12">
                         {product.images && product.images.length > 0 ? (
                           <img
                             className="h-12 w-12 rounded-lg object-cover"
-                            src={product.images[0]}
-                            alt={product.name}
+                            src={product.images[0]?.url || product.images[0]}
+                            alt={product.images[0]?.altText || product.name}
                           />
                         ) : (
                           <div className="h-12 w-12 rounded-lg bg-gray-100 flex items-center justify-center">
@@ -334,24 +371,26 @@ const ProductManagement = () => {
                       </div>
                       <div className="ml-4">
                         <div className="text-sm font-medium text-gray-900">{product.name}</div>
-                        <div className="text-sm text-gray-500">{product.sku}</div>
+                        <div className="text-sm text-gray-500">{product.sku || 'N/A'}</div>
                       </div>
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="flex items-center">
                       <TagIcon className="h-4 w-4 text-gray-400 mr-2" />
-                      <span className="text-sm text-gray-900">{product.category}</span>
+                      <span className="text-sm text-gray-900">
+                        {product.category?.name || product.category || 'N/A'}
+                      </span>
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    ₹{product.price}
+                    ₹{product.pricing?.sellingPrice || product.price || 0}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="flex items-center">
                       <CubeIcon className="h-4 w-4 text-gray-400 mr-2" />
-                      <span className={`text-sm ${product.stock > 0 ? 'text-gray-900' : 'text-red-600'}`}>
-                        {product.stock}
+                      <span className={`text-sm ${(product.inventory?.stock || product.stock || 0) > 0 ? 'text-gray-900' : 'text-red-600'}`}>
+                        {product.inventory?.stock || product.stock || 0}
                       </span>
                     </div>
                   </td>
@@ -359,7 +398,7 @@ const ProductManagement = () => {
                     {getStatusBadge(product.status)}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {product.sales} units
+                    {product.sales || 0} units
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                     <div className="flex justify-end space-x-2">
@@ -408,18 +447,18 @@ const ProductManagement = () => {
             <div>
               <p className="text-sm text-gray-700">
                 Showing{' '}
-                <span className="font-medium">{(currentPage - 1) * itemsPerPage + 1}</span>
+                <span className="font-medium">{totalProducts > 0 ? (currentPage - 1) * itemsPerPage + 1 : 0}</span>
                 {' '}to{' '}
                 <span className="font-medium">
-                  {Math.min(currentPage * itemsPerPage, filteredProducts.length)}
+                  {Math.min(currentPage * itemsPerPage, totalProducts)}
                 </span>
                 {' '}of{' '}
-                <span className="font-medium">{filteredProducts.length}</span>
+                <span className="font-medium">{totalProducts}</span>
                 {' '}results
               </p>
             </div>
             <div>
-              <nav className="relative z-0 inline-flex rounded-md  -space-x-px">
+              <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px">
                 {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
                   <button
                     key={page}
@@ -445,7 +484,7 @@ const ProductManagement = () => {
           <div className="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
             <div className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" onClick={() => setShowModal(false)}></div>
             
-            <div className="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden  transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
+            <div className="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
               <form onSubmit={handleSubmit}>
                 <div className="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
                   <h3 className="text-lg font-medium text-gray-900 mb-4">
@@ -460,7 +499,7 @@ const ProductManagement = () => {
                         required
                         value={formData.name}
                         onChange={(e) => setFormData({...formData, name: e.target.value})}
-                        className="mt-1 block w-full rounded-md border-gray-300  focus:border-blue-500 focus:ring-blue-500"
+                        className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
                       />
                     </div>
                     
@@ -470,7 +509,7 @@ const ProductManagement = () => {
                         rows={3}
                         value={formData.description}
                         onChange={(e) => setFormData({...formData, description: e.target.value})}
-                        className="mt-1 block w-full rounded-md border-gray-300  focus:border-blue-500 focus:ring-blue-500"
+                        className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
                       />
                     </div>
                     
@@ -484,7 +523,7 @@ const ProductManagement = () => {
                           step="0.01"
                           value={formData.price}
                           onChange={(e) => setFormData({...formData, price: e.target.value})}
-                          className="mt-1 block w-full rounded-md border-gray-300  focus:border-blue-500 focus:ring-blue-500"
+                          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
                         />
                       </div>
                       
@@ -496,7 +535,7 @@ const ProductManagement = () => {
                           min="0"
                           value={formData.stock}
                           onChange={(e) => setFormData({...formData, stock: e.target.value})}
-                          className="mt-1 block w-full rounded-md border-gray-300  focus:border-blue-500 focus:ring-blue-500"
+                          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
                         />
                       </div>
                     </div>
@@ -508,7 +547,7 @@ const ProductManagement = () => {
                           required
                           value={formData.category}
                           onChange={(e) => setFormData({...formData, category: e.target.value})}
-                          className="mt-1 block w-full rounded-md border-gray-300  focus:border-blue-500 focus:ring-blue-500"
+                          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
                         >
                           <option value="">Select Category</option>
                           {categories.map(category => (
@@ -524,7 +563,7 @@ const ProductManagement = () => {
                           required
                           value={formData.sku}
                           onChange={(e) => setFormData({...formData, sku: e.target.value})}
-                          className="mt-1 block w-full rounded-md border-gray-300  focus:border-blue-500 focus:ring-blue-500"
+                          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
                         />
                       </div>
                     </div>
@@ -534,7 +573,7 @@ const ProductManagement = () => {
                       <select
                         value={formData.status}
                         onChange={(e) => setFormData({...formData, status: e.target.value})}
-                        className="mt-1 block w-full rounded-md border-gray-300  focus:border-blue-500 focus:ring-blue-500"
+                        className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
                       >
                         <option value="active">Active</option>
                         <option value="inactive">Inactive</option>
@@ -546,7 +585,7 @@ const ProductManagement = () => {
                 <div className="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
                   <button
                     type="submit"
-                    className="w-full inline-flex justify-center rounded-md border border-transparent  px-4 py-2 bg-blue-600 text-base font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:ml-3 sm:w-auto sm:text-sm"
+                    className="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-blue-600 text-base font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:ml-3 sm:w-auto sm:text-sm"
                   >
                     {editingProduct ? 'Update' : 'Add'} Product
                   </button>
@@ -556,7 +595,7 @@ const ProductManagement = () => {
                       setShowModal(false);
                       resetForm();
                     }}
-                    className="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300  px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm"
+                    className="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm"
                   >
                     Cancel
                   </button>
