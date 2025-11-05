@@ -32,7 +32,7 @@ const OrderManagement = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
   const [filterPayment, setFilterPayment] = useState('all');
-  const [filterDate, setFilterDate] = useState('all');
+  const [filterDate, setFilterDate] = useState('today'); // Default to today's orders
   const [customDateRange, setCustomDateRange] = useState({
     startDate: '',
     endDate: ''
@@ -511,12 +511,8 @@ const OrderManagement = () => {
     delivered: orders.filter(o => o.status === 'delivered').length,
     assigned: orders.filter(o => o.delivery?.deliveryBoy).length,
     unassigned: orders.filter(o => !o.delivery?.deliveryBoy && !['delivered', 'cancelled', 'returned'].includes(o.status)).length,
-    todayRevenue: orders
-      .filter(o => {
-        const today = new Date().toDateString();
-        return new Date(o.orderDate).toDateString() === today && o.status === 'delivered';
-      })
-      .reduce((sum, o) => sum + (o.totalAmount || 0), 0)
+    // Calculate total revenue from filtered orders in the table
+    totalRevenue: filteredOrders.reduce((sum, o) => sum + (o.totalAmount || 0), 0)
   };
 
   if (loading) {
@@ -722,23 +718,16 @@ const OrderManagement = () => {
             </div>
           </div>
         </div>
-        <div 
-          onClick={() => setFilterStatus(filterStatus === 'delivered' ? 'all' : 'delivered')}
-          className={`bg-white overflow-hidden rounded-lg border-2 cursor-pointer transition-all ${
-            filterStatus === 'delivered' 
-              ? 'border-green-500 shadow-md' 
-              : 'border-gray-200 hover:border-green-300 hover:shadow-sm'
-          }`}
-        >
+        <div className="bg-white overflow-hidden rounded-lg border border-emerald-200">
           <div className="p-3">
             <div className="flex items-center">
               <div className="shrink-0">
-                <CheckCircleIcon className="h-5 w-5 text-green-600" />
+                <BanknotesIcon className="h-5 w-5 text-emerald-600" />
               </div>
               <div className="ml-3 w-0 flex-1">
                 <dl>
-                  <dt className="text-xs font-medium text-gray-500 truncate">Delivered</dt>
-                  <dd className="text-base font-semibold text-gray-900">{orderStats.delivered}</dd>
+                  <dt className="text-xs font-medium text-gray-500 truncate">Total Revenue</dt>
+                  <dd className="text-base font-semibold text-gray-900">₹{orderStats.totalRevenue.toLocaleString()}</dd>
                 </dl>
               </div>
             </div>
