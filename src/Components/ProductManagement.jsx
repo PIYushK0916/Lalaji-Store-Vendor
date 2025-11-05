@@ -425,7 +425,7 @@ const ProductManagement = () => {
         <div className="mt-2 sm:mt-0 flex gap-2">
           <button
             onClick={handleOpenSelectProduct}
-            className="inline-flex items-center rounded-md bg-green-600 px-2.5 py-1.5 text-xs font-semibold text-white shadow-sm hover:bg-green-500"
+            className="inline-flex items-center rounded-md bg-green-600 px-2.5 py-1.5 text-xs font-semibold text-white  hover:bg-green-500"
           >
             <CheckCircleIcon className="h-3.5 w-3.5 mr-1.5" />
             Select Product
@@ -435,7 +435,7 @@ const ProductManagement = () => {
               setModalMode('add');
               setShowModal(true);
             }}
-            className="inline-flex items-center rounded-md bg-blue-600 px-2.5 py-1.5 text-xs font-semibold text-white shadow-sm hover:bg-blue-500"
+            className="inline-flex items-center rounded-md bg-blue-600 px-2.5 py-1.5 text-xs font-semibold text-white  hover:bg-blue-500"
           >
             <PlusIcon className="h-3.5 w-3.5 mr-1.5" />
             Add Product
@@ -451,7 +451,7 @@ const ProductManagement = () => {
             setFilterStatus('all');
             setCurrentPage(1);
           }}
-          className={`bg-white rounded-lg shadow-sm p-3 hover:shadow transition-all text-left ${
+          className={`bg-white rounded-lg  p-3 hover:shadow transition-all text-left ${
             filterStatus === 'all' ? 'ring-2 ring-blue-500' : ''
           }`}
         >
@@ -472,7 +472,7 @@ const ProductManagement = () => {
             setFilterStatus('active');
             setCurrentPage(1);
           }}
-          className={`bg-white rounded-lg shadow-sm p-3 hover:shadow transition-all text-left ${
+          className={`bg-white rounded-lg  p-3 hover:shadow transition-all text-left ${
             filterStatus === 'active' ? 'ring-2 ring-green-500' : ''
           }`}
         >
@@ -493,7 +493,7 @@ const ProductManagement = () => {
             setFilterStatus('inactive');
             setCurrentPage(1);
           }}
-          className={`bg-white rounded-lg shadow-sm p-3 hover:shadow transition-all text-left ${
+          className={`bg-white rounded-lg  p-3 hover:shadow transition-all text-left ${
             filterStatus === 'inactive' ? 'ring-2 ring-yellow-500' : ''
           }`}
         >
@@ -514,7 +514,7 @@ const ProductManagement = () => {
             setFilterStatus('out_of_stock');
             setCurrentPage(1);
           }}
-          className={`bg-white rounded-lg shadow-sm p-3 hover:shadow transition-all text-left ${
+          className={`bg-white rounded-lg  p-3 hover:shadow transition-all text-left ${
             filterStatus === 'out_of_stock' ? 'ring-2 ring-red-500' : ''
           }`}
         >
@@ -531,7 +531,7 @@ const ProductManagement = () => {
       </div>
 
       {/* Filters - Super Compact */}
-      <div className="bg-white shadow-sm rounded-lg p-2.5">
+      <div className="bg-white  rounded-lg p-2.5">
         <div className="flex flex-wrap items-center gap-2">
           {/* Search */}
           <div className="relative flex-1 min-w-[180px]">
@@ -581,7 +581,7 @@ const ProductManagement = () => {
               onClick={() => setViewMode('list')}
               className={`inline-flex items-center rounded px-2 py-1 text-xs font-medium transition-colors ${
                 viewMode === 'list'
-                  ? 'bg-blue-600 text-white shadow-sm'
+                  ? 'bg-blue-600 text-white '
                   : 'text-gray-700 hover:bg-gray-50'
               }`}
             >
@@ -592,7 +592,7 @@ const ProductManagement = () => {
               onClick={() => setViewMode('cards')}
               className={`inline-flex items-center rounded px-2 py-1 text-xs font-medium transition-colors ${
                 viewMode === 'cards'
-                  ? 'bg-blue-600 text-white shadow-sm'
+                  ? 'bg-blue-600 text-white '
                   : 'text-gray-700 hover:bg-gray-50'
               }`}
             >
@@ -606,7 +606,7 @@ const ProductManagement = () => {
       {/* Products View - List or Cards */}
       {viewMode === 'list' ? (
         /* List View - Table - Super Compact */
-        <div className="bg-white shadow-sm rounded-lg overflow-hidden">
+        <div className="bg-white  rounded-lg overflow-hidden">
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
@@ -751,7 +751,7 @@ const ProductManagement = () => {
                 </p>
               </div>
               <div>
-                <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px">
+                <nav className="relative z-0 inline-flex rounded-md  -space-x-px">
                   {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
                     <button
                       key={page}
@@ -780,7 +780,7 @@ const ProductManagement = () => {
               const approvalStatus = product.approvalStatus?.status || 'pending';
 
               return (
-                <div key={product._id || product.id} className="bg-white shadow-sm rounded-lg overflow-hidden hover:shadow transition-shadow">
+                <div key={product._id || product.id} className="bg-white  rounded-lg overflow-hidden hover:shadow transition-shadow">
                   {/* Product Image */}
                   <div className="relative h-32 bg-gray-100">
                     {product.images && product.images.length > 0 ? (
@@ -864,7 +864,7 @@ const ProductManagement = () => {
           </div>
 
           {/* Pagination for Card View - Super Compact */}
-          <div className="bg-white shadow-sm rounded-lg px-3 py-2 flex items-center justify-between">
+          <div className="bg-white  rounded-lg px-3 py-2 flex items-center justify-between">
             <div className="flex-1 flex justify-between sm:hidden">
               <button
                 onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
@@ -896,7 +896,7 @@ const ProductManagement = () => {
                 </p>
               </div>
               <div>
-                <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px">
+                <nav className="relative z-0 inline-flex rounded-md  -space-x-px">
                   {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
                     <button
                       key={page}
@@ -923,7 +923,7 @@ const ProductManagement = () => {
           <div className="flex items-center justify-center min-h-screen px-4 py-8">
             <div className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" onClick={() => setShowModal(false)}></div>
 
-            <div className={`relative bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all w-full ${modalMode === 'select' ? 'max-w-4xl' : 'max-w-7xl'}`}>
+            <div className={`relative bg-white rounded-lg text-left overflow-hidden  transform transition-all w-full ${modalMode === 'select' ? 'max-w-4xl' : 'max-w-7xl'}`}>
               <form onSubmit={handleSubmit}>
                 <div className="bg-white px-8 pt-4 pb-3">
                   <h3 className="text-lg font-semibold text-gray-900 mb-4">
@@ -1063,7 +1063,7 @@ const ProductManagement = () => {
                               min="0"
                               value={selectionData.stock}
                               onChange={(e) => setSelectionData({...selectionData, stock: e.target.value})}
-                              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                              className="mt-1 block w-full rounded-md border-gray-300  focus:border-blue-500 focus:ring-blue-500"
                               placeholder="Enter initial stock quantity"
                             />
                           </div>
@@ -1073,7 +1073,7 @@ const ProductManagement = () => {
                               rows={3}
                               value={selectionData.notes}
                               onChange={(e) => setSelectionData({...selectionData, notes: e.target.value})}
-                              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                              className="mt-1 block w-full rounded-md border-gray-300  focus:border-blue-500 focus:ring-blue-500"
                               placeholder="Add any notes about this product..."
                             />
                           </div>
@@ -1105,7 +1105,7 @@ const ProductManagement = () => {
                               required
                               value={formData.name}
                               onChange={(e) => setFormData({...formData, name: e.target.value})}
-                              className="block w-full px-3 py-2 rounded-md border border-gray-300 shadow-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 text-sm"
+                              className="block w-full px-3 py-2 rounded-md border border-gray-300  focus:border-blue-500 focus:ring-1 focus:ring-blue-500 text-sm"
                               placeholder="Enter product name"
                             />
                           </div>
@@ -1121,7 +1121,7 @@ const ProductManagement = () => {
                                 required
                                 value={formData.sku}
                                 onChange={(e) => setFormData({...formData, sku: e.target.value})}
-                                className="block w-full px-3 py-2 rounded-md border border-gray-300 shadow-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 text-sm"
+                                className="block w-full px-3 py-2 rounded-md border border-gray-300  focus:border-blue-500 focus:ring-1 focus:ring-blue-500 text-sm"
                                 placeholder="e.g., APL-ORG-001"
                               />
                               <button
@@ -1146,7 +1146,7 @@ const ProductManagement = () => {
                               required
                               value={formData.category}
                               onChange={(e) => setFormData({...formData, category: e.target.value})}
-                              className="block w-full px-3 py-2 rounded-md border border-gray-300 shadow-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 text-sm"
+                              className="block w-full px-3 py-2 rounded-md border border-gray-300  focus:border-blue-500 focus:ring-1 focus:ring-blue-500 text-sm"
                             >
                               <option value="">Select category</option>
                               {categories.map(category => (
@@ -1169,7 +1169,7 @@ const ProductManagement = () => {
                                 step="0.01"
                                 value={formData.price}
                                 onChange={(e) => setFormData({...formData, price: e.target.value})}
-                                className="block w-full pl-8 pr-3 py-2 rounded-md border border-gray-300 shadow-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 text-sm"
+                                className="block w-full pl-8 pr-3 py-2 rounded-md border border-gray-300  focus:border-blue-500 focus:ring-1 focus:ring-blue-500 text-sm"
                                 placeholder="0.00"
                               />
                             </div>
@@ -1184,7 +1184,7 @@ const ProductManagement = () => {
                               step="0.01"
                               value={formData.weight}
                               onChange={(e) => setFormData({...formData, weight: e.target.value})}
-                              className="block w-full px-3 py-2 rounded-md border border-gray-300 shadow-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 text-sm"
+                              className="block w-full px-3 py-2 rounded-md border border-gray-300  focus:border-blue-500 focus:ring-1 focus:ring-blue-500 text-sm"
                               placeholder="0.00"
                             />
                           </div>
@@ -1192,7 +1192,7 @@ const ProductManagement = () => {
                           {/* Unit */}
                           <div>
                             <label className="block text-xs font-medium text-gray-700 mb-1.5">Unit</label>
-                            <select className="block w-full px-3 py-2 rounded-md border border-gray-300 shadow-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 text-sm bg-gray-50" disabled>
+                            <select className="block w-full px-3 py-2 rounded-md border border-gray-300  focus:border-blue-500 focus:ring-1 focus:ring-blue-500 text-sm bg-gray-50" disabled>
                               <option>kg</option>
                             </select>
                           </div>
@@ -1204,7 +1204,7 @@ const ProductManagement = () => {
                               type="text"
                               value={formData.dimensions}
                               onChange={(e) => setFormData({...formData, dimensions: e.target.value})}
-                              className="block w-full px-3 py-2 rounded-md border border-gray-300 shadow-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 text-sm"
+                              className="block w-full px-3 py-2 rounded-md border border-gray-300  focus:border-blue-500 focus:ring-1 focus:ring-blue-500 text-sm"
                               placeholder="L x W x H"
                             />
                           </div>
@@ -1215,7 +1215,7 @@ const ProductManagement = () => {
                             <select
                               value={formData.status}
                               onChange={(e) => setFormData({...formData, status: e.target.value})}
-                              className="block w-full px-3 py-2 rounded-md border border-gray-300 shadow-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 text-sm"
+                              className="block w-full px-3 py-2 rounded-md border border-gray-300  focus:border-blue-500 focus:ring-1 focus:ring-blue-500 text-sm"
                             >
                               <option value="active">Active</option>
                               <option value="inactive">Inactive</option>
@@ -1250,7 +1250,7 @@ const ProductManagement = () => {
                               rows={2}
                               value={formData.description}
                               onChange={(e) => setFormData({...formData, description: e.target.value})}
-                              className="block w-full px-3 py-2 rounded-md border border-gray-300 shadow-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 text-sm resize-none"
+                              className="block w-full px-3 py-2 rounded-md border border-gray-300  focus:border-blue-500 focus:ring-1 focus:ring-blue-500 text-sm resize-none"
                               placeholder="Brief description of your product..."
                             />
                           </div>
@@ -1282,7 +1282,7 @@ const ProductManagement = () => {
                                 step="0.01"
                                 value={formData.costPrice}
                                 onChange={(e) => setFormData({...formData, costPrice: e.target.value})}
-                                className="block w-full pl-8 pr-3 py-2 rounded-md border border-gray-300 shadow-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 text-sm"
+                                className="block w-full pl-8 pr-3 py-2 rounded-md border border-gray-300  focus:border-blue-500 focus:ring-1 focus:ring-blue-500 text-sm"
                                 placeholder="0.00"
                               />
                             </div>
@@ -1299,7 +1299,7 @@ const ProductManagement = () => {
                                 step="0.01"
                                 value={formData.suggestedMRP}
                                 onChange={(e) => setFormData({...formData, suggestedMRP: e.target.value})}
-                                className="block w-full pl-8 pr-3 py-2 rounded-md border border-gray-300 shadow-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 text-sm"
+                                className="block w-full pl-8 pr-3 py-2 rounded-md border border-gray-300  focus:border-blue-500 focus:ring-1 focus:ring-blue-500 text-sm"
                                 placeholder="0.00"
                               />
                             </div>
@@ -1316,7 +1316,7 @@ const ProductManagement = () => {
                                 step="0.01"
                                 value={formData.minSellingPrice}
                                 onChange={(e) => setFormData({...formData, minSellingPrice: e.target.value})}
-                                className="block w-full pl-8 pr-3 py-2 rounded-md border border-gray-300 shadow-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 text-sm"
+                                className="block w-full pl-8 pr-3 py-2 rounded-md border border-gray-300  focus:border-blue-500 focus:ring-1 focus:ring-blue-500 text-sm"
                                 placeholder="0.00"
                               />
                             </div>
@@ -1346,7 +1346,7 @@ const ProductManagement = () => {
                                 type="text"
                                 value={formData.shortDescription}
                                 onChange={(e) => setFormData({...formData, shortDescription: e.target.value})}
-                                className="block w-full px-3 py-2 rounded-md border border-gray-300 shadow-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 text-sm"
+                                className="block w-full px-3 py-2 rounded-md border border-gray-300  focus:border-blue-500 focus:ring-1 focus:ring-blue-500 text-sm"
                                 placeholder="Brief summary..."
                               />
                             </div>
@@ -1357,7 +1357,7 @@ const ProductManagement = () => {
                                 type="date"
                                 value={formData.manufacturingDate}
                                 onChange={(e) => setFormData({...formData, manufacturingDate: e.target.value})}
-                                className="block w-full px-3 py-2 rounded-md border border-gray-300 shadow-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 text-sm"
+                                className="block w-full px-3 py-2 rounded-md border border-gray-300  focus:border-blue-500 focus:ring-1 focus:ring-blue-500 text-sm"
                               />
                             </div>
 
@@ -1367,7 +1367,7 @@ const ProductManagement = () => {
                                 type="date"
                                 value={formData.expiryDate}
                                 onChange={(e) => setFormData({...formData, expiryDate: e.target.value})}
-                                className="block w-full px-3 py-2 rounded-md border border-gray-300 shadow-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 text-sm"
+                                className="block w-full px-3 py-2 rounded-md border border-gray-300  focus:border-blue-500 focus:ring-1 focus:ring-blue-500 text-sm"
                               />
                             </div>
 
@@ -1377,7 +1377,7 @@ const ProductManagement = () => {
                                   type="checkbox"
                                   checked={formData.perishable}
                                   onChange={(e) => setFormData({...formData, perishable: e.target.checked})}
-                                  className="rounded border-gray-300 text-blue-600 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50"
+                                  className="rounded border-gray-300 text-blue-600  focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50"
                                 />
                                 <span className="ml-2 text-xs font-medium text-gray-700">Perishable</span>
                               </label>
@@ -1393,7 +1393,7 @@ const ProductManagement = () => {
                                 min="0"
                                 value={formData.calories}
                                 onChange={(e) => setFormData({...formData, calories: e.target.value})}
-                                className="block w-full px-3 py-2 rounded-md border border-gray-300 shadow-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 text-sm"
+                                className="block w-full px-3 py-2 rounded-md border border-gray-300  focus:border-blue-500 focus:ring-1 focus:ring-blue-500 text-sm"
                                 placeholder="Calories"
                               />
                               <input
@@ -1401,7 +1401,7 @@ const ProductManagement = () => {
                                 min="0"
                                 value={formData.protein}
                                 onChange={(e) => setFormData({...formData, protein: e.target.value})}
-                                className="block w-full px-3 py-2 rounded-md border border-gray-300 shadow-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 text-sm"
+                                className="block w-full px-3 py-2 rounded-md border border-gray-300  focus:border-blue-500 focus:ring-1 focus:ring-blue-500 text-sm"
                                 placeholder="Protein"
                               />
                               <input
@@ -1409,7 +1409,7 @@ const ProductManagement = () => {
                                 min="0"
                                 value={formData.carbohydrates}
                                 onChange={(e) => setFormData({...formData, carbohydrates: e.target.value})}
-                                className="block w-full px-3 py-2 rounded-md border border-gray-300 shadow-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 text-sm"
+                                className="block w-full px-3 py-2 rounded-md border border-gray-300  focus:border-blue-500 focus:ring-1 focus:ring-blue-500 text-sm"
                                 placeholder="Carbohydrates"
                               />
                               <input
@@ -1417,7 +1417,7 @@ const ProductManagement = () => {
                                 min="0"
                                 value={formData.fat}
                                 onChange={(e) => setFormData({...formData, fat: e.target.value})}
-                                className="block w-full px-3 py-2 rounded-md border border-gray-300 shadow-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 text-sm"
+                                className="block w-full px-3 py-2 rounded-md border border-gray-300  focus:border-blue-500 focus:ring-1 focus:ring-blue-500 text-sm"
                                 placeholder="Fat"
                               />
                               <input
@@ -1425,7 +1425,7 @@ const ProductManagement = () => {
                                 min="0"
                                 value={formData.fiber}
                                 onChange={(e) => setFormData({...formData, fiber: e.target.value})}
-                                className="block w-full px-3 py-2 rounded-md border border-gray-300 shadow-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 text-sm"
+                                className="block w-full px-3 py-2 rounded-md border border-gray-300  focus:border-blue-500 focus:ring-1 focus:ring-blue-500 text-sm"
                                 placeholder="Fiber"
                               />
                               <input
@@ -1433,7 +1433,7 @@ const ProductManagement = () => {
                                 min="0"
                                 value={formData.sugar}
                                 onChange={(e) => setFormData({...formData, sugar: e.target.value})}
-                                className="block w-full px-3 py-2 rounded-md border border-gray-300 shadow-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 text-sm"
+                                className="block w-full px-3 py-2 rounded-md border border-gray-300  focus:border-blue-500 focus:ring-1 focus:ring-blue-500 text-sm"
                                 placeholder="Sugar"
                               />
                             </div>
@@ -1446,7 +1446,7 @@ const ProductManagement = () => {
                               <input
                                 type="text"
                                 placeholder="Add tag..."
-                                className="block w-full px-3 py-2 rounded-md border border-gray-300 shadow-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 text-sm"
+                                className="block w-full px-3 py-2 rounded-md border border-gray-300  focus:border-blue-500 focus:ring-1 focus:ring-blue-500 text-sm"
                               />
                             </div>
 
@@ -1455,7 +1455,7 @@ const ProductManagement = () => {
                               <input
                                 type="text"
                                 placeholder="Add ingredient..."
-                                className="block w-full px-3 py-2 rounded-md border border-gray-300 shadow-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 text-sm"
+                                className="block w-full px-3 py-2 rounded-md border border-gray-300  focus:border-blue-500 focus:ring-1 focus:ring-blue-500 text-sm"
                               />
                             </div>
                           </div>
@@ -1482,7 +1482,7 @@ const ProductManagement = () => {
                               type="text"
                               value={formData.seoTitle}
                               onChange={(e) => setFormData({...formData, seoTitle: e.target.value})}
-                              className="block w-full px-3 py-2 rounded-md border border-gray-300 shadow-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 text-sm"
+                              className="block w-full px-3 py-2 rounded-md border border-gray-300  focus:border-blue-500 focus:ring-1 focus:ring-blue-500 text-sm"
                               placeholder="SEO optimized title"
                             />
                           </div>
@@ -1494,7 +1494,7 @@ const ProductManagement = () => {
                               rows={2}
                               value={formData.seoDescription}
                               onChange={(e) => setFormData({...formData, seoDescription: e.target.value})}
-                              className="block w-full px-3 py-2 rounded-md border border-gray-300 shadow-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 text-sm resize-none"
+                              className="block w-full px-3 py-2 rounded-md border border-gray-300  focus:border-blue-500 focus:ring-1 focus:ring-blue-500 text-sm resize-none"
                               placeholder="SEO meta description..."
                               maxLength={160}
                             />
@@ -1548,7 +1548,7 @@ const ProductManagement = () => {
                     <button
                       type="submit"
                       disabled={modalMode === 'select' && !selectedProductForSelection}
-                      className="inline-flex justify-center items-center rounded-md px-5 py-2 bg-green-600 text-sm font-semibold text-white hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
+                      className="inline-flex justify-center items-center rounded-md px-5 py-2 bg-green-600 text-sm font-semibold text-white hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed "
                     >
                       {modalMode === 'select' ? 'Select Product' : editingProduct ? 'Update Product' : 'Save Product'}
                     </button>
