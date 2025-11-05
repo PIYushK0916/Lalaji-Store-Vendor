@@ -1114,14 +1114,13 @@ const OrderManagement = () => {
 
       {/* Order Details Modal */}
       {showOrderDetails && selectedOrder && (
-        <div className="fixed inset-0 bg-black/50 z-50 overflow-y-auto">
-          <div className="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
-            <div 
-              className="fixed inset-0 z-60 transition-opacity" 
-              onClick={() => setShowOrderDetails(false)}
-            ></div>
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div 
+            className="fixed inset-0" 
+            onClick={() => setShowOrderDetails(false)}
+          ></div>
             
-            <div className="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-3xl sm:w-full">
+          <div className="relative bg-white rounded-lg shadow-xl w-full max-w-4xl max-h-[90vh] flex flex-col z-10">
               {/* Modal Header */}
               <div className="bg-white px-6 py-4 border-b border-gray-200">
                 <div className="flex items-center justify-between">
@@ -1551,10 +1550,8 @@ const OrderManagement = () => {
               </div>
             </div>
           </div>
-        </div>
-      )}
 
-      {/* Assign Delivery Boy Modal */}
+      )}
       {showAssignDelivery && selectedOrder && (
         <div className="fixed inset-0 z-50 overflow-y-auto">
           <div className="flex items-center justify-center min-h-screen pt-4 px-4 pb-20">
