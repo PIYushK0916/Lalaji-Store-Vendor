@@ -37,6 +37,7 @@ import InventoryManagement from "./Components/InventoryManagement";
 import WalletPayments from "./Components/WalletPayments";
 import Analytics from "./Components/Analytics";
 import ProfileManagement from "./Components/ProfileManagement";
+import DeliveryTeamManagement from "./Components/DeliveryTeamManagement";
 import { auth } from "./utils/auth";
 
 const VendorLayout = ({ children }) => {
@@ -150,6 +151,7 @@ const VendorLayout = ({ children }) => {
         { name: "Products", href: "/products", icon: CubeIcon },
         { name: "Inventory", href: "/inventory", icon: ArchiveBoxIcon },
         { name: "Orders", href: "/orders", icon: ShoppingBagIcon },
+        { name: "Delivery Team", href: "/delivery-team", icon: TruckIcon },
         { name: "Wallet", href: "/wallet", icon: WalletIcon },
         { name: "Analytics", href: "/analytics", icon: ChartBarIcon },
         { name: "Profile", href: "/profile", icon: UserIcon },
@@ -473,6 +475,14 @@ function App() {
             element={
               <ProtectedRoute>
                 <OrderManagement />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/delivery-team"
+            element={
+              <ProtectedRoute>
+                <DeliveryTeamManagement />
               </ProtectedRoute>
             }
           />

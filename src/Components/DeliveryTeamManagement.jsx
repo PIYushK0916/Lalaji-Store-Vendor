@@ -1,0 +1,1059 @@
+import { useState, useEffect } from 'react';
+import {
+  UserGroupIcon,
+  PlusIcon,
+  MagnifyingGlassIcon,
+  PhoneIcon,
+  EnvelopeIcon,
+  MapPinIcon,
+  CheckCircleIcon,
+  XCircleIcon,
+  PencilIcon,
+  TrashIcon,
+  TruckIcon,
+  ClockIcon,
+  ExclamationTriangleIcon,
+  DocumentTextIcon
+} from '@heroicons/react/24/outline';
+import { 
+  getAllDeliveryTeam, 
+  addDeliveryBoy, 
+  updateDeliveryBoyStatus, 
+  removeDeliveryBoy 
+} from '../utils/api';
+
+const DeliveryTeamManagement = () => {
+  const [deliveryTeam, setDeliveryTeam] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [successMessage, setSuccessMessage] = useState(null);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [selectedDeliveryBoy, setSelectedDeliveryBoy] = useState(null);
+  const [filterStatus, setFilterStatus] = useState('all');
+
+  // Form state
+  const [formData, setFormData] = useState({
+    // Basic Information
+    name: '',
+    email: '',
+    phoneNumber: '',
+    password: '',
+    
+    // Personal Information
+    fullName: '',
+    mobileNumber: '',
+    alternateNumber: '',
+    
+    // Address Information
+    address: '',
+    city: '',
+    state: '',
+    pincode: '',
+    
+    // Identification
+    panNumber: '',
+    aadharNumber: '',
+    
+    // Experience
+    experienceYears: '',
+    
+    // Vehicle Information
+    vehicleType: '',
+    vehicleNumber: '',
+    licenseNumber: '',
+    
+    // Bank Details
+    accountNumber: '',
+    accountHolderName: '',
+    ifsc: '',
+    upiId: '',
+    
+    // Emergency Contact
+    emergencyContact: {
+      name: '',
+      phone: '',
+      relation: ''
+    }
+  });
+
+  useEffect(() => {
+    fetchDeliveryTeam();
+  }, []);
+
+  const fetchDeliveryTeam = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const response = await getAllDeliveryTeam();
+      
+      if (response && response.success && response.data) {
+        setDeliveryTeam(response.data.deliveryBoys || []);
+      }
+    } catch (err) {
+      console.error('Error fetching delivery team:', err);
+      setError(err.message || 'Failed to load delivery team');
+      setDeliveryTeam([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleAddDeliveryBoy = async (e) => {
+    e.preventDefault();
+    try {
+      setError(null);
+      
+      // Format the data according to backend expectations and User schema
+      const deliveryBoyPayload = {
+        name: formData.name,
+        email: formData.email,
+        phoneNumber: formData.phoneNumber,
+        password: formData.password,
+        mobileNumber: formData.mobileNumber || formData.phoneNumber,
+        alternateNumber: formData.alternateNumber,
+        address: formData.address,
+        city: formData.city,
+        state: formData.state,
+        pincode: formData.pincode,
+        panNumber: formData.panNumber,
+        aadharNumber: formData.aadharNumber,
+        experienceYears: formData.experienceYears ? parseInt(formData.experienceYears) : 0,
+        vehicleType: formData.vehicleType,
+        vehicleNumber: formData.vehicleNumber,
+        licenseNumber: formData.licenseNumber,
+        accountHolderName: formData.accountHolderName,
+        accountNumber: formData.accountNumber,
+        ifsc: formData.ifsc,
+        upiId: formData.upiId,
+        emergencyContact: {
+          name: formData.emergencyContact.name,
+          phone: formData.emergencyContact.phone,
+          relation: formData.emergencyContact.relation
+        }
+      };
+      
+      const response = await addDeliveryBoy(deliveryBoyPayload);
+      
+      if (response && response.success) {
+        setSuccessMessage('Delivery person added successfully!');
+        setTimeout(() => setSuccessMessage(null), 5000);
+        setShowAddModal(false);
+        resetForm();
+        fetchDeliveryTeam();
+      }
+    } catch (err) {
+      console.error('Error adding delivery person:', err);
+      setError(err.message || 'Failed to add delivery person');
+      setTimeout(() => setError(null), 5000);
+    }
+  };
+
+  const handleUpdateStatus = async (deliveryBoyId, isAvailable) => {
+    try {
+      setError(null);
+      const response = await updateDeliveryBoyStatus(deliveryBoyId, {
+        isAvailable: !isAvailable
+      });
+      
+      if (response && response.success) {
+        setSuccessMessage(`Delivery person status updated successfully!`);
+        setTimeout(() => setSuccessMessage(null), 5000);
+        fetchDeliveryTeam();
+      }
+    } catch (err) {
+      console.error('Error updating status:', err);
+      setError(err.message || 'Failed to update status');
+      setTimeout(() => setError(null), 5000);
+    }
+  };
+
+  const handleRemoveDeliveryBoy = async (deliveryBoyId) => {
+    if (!confirm('Are you sure you want to remove this delivery person from your team?')) {
+      return;
+    }
+
+    try {
+      setError(null);
+      const response = await removeDeliveryBoy(deliveryBoyId);
+      
+      if (response && response.success) {
+        setSuccessMessage('Delivery person removed successfully!');
+        setTimeout(() => setSuccessMessage(null), 5000);
+        fetchDeliveryTeam();
+      }
+    } catch (err) {
+      console.error('Error removing delivery person:', err);
+      setError(err.message || 'Failed to remove delivery person');
+      setTimeout(() => setError(null), 5000);
+    }
+  };
+
+  const resetForm = () => {
+    setFormData({
+      // Basic Information
+      name: '',
+      email: '',
+      phoneNumber: '',
+      password: '',
+      
+      // Personal Information
+      fullName: '',
+      mobileNumber: '',
+      alternateNumber: '',
+      
+      // Address Information
+      address: '',
+      city: '',
+      state: '',
+      pincode: '',
+      
+      // Identification
+      panNumber: '',
+      aadharNumber: '',
+      
+      // Experience
+      experienceYears: '',
+      
+      // Vehicle Information
+      vehicleType: '',
+      vehicleNumber: '',
+      licenseNumber: '',
+      
+      // Bank Details
+      accountNumber: '',
+      accountHolderName: '',
+      ifsc: '',
+      upiId: '',
+      
+      // Emergency Contact
+      emergencyContact: {
+        name: '',
+        phone: '',
+        relation: ''
+      }
+    });
+  };
+
+  const handleInputChange = (e) => {
+    const { name, value } = e.target;
+    if (name.startsWith('emergencyContact.')) {
+      const field = name.split('.')[1];
+      setFormData(prev => ({
+        ...prev,
+        emergencyContact: {
+          ...prev.emergencyContact,
+          [field]: value
+        }
+      }));
+    } else {
+      setFormData(prev => ({ ...prev, [name]: value }));
+    }
+  };
+
+  const filteredTeam = deliveryTeam.filter(member => {
+    const matchesSearch = 
+      (member.name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (member.phoneNumber || '').includes(searchTerm) ||
+      (member.email || '').toLowerCase().includes(searchTerm.toLowerCase());
+    
+    const matchesStatus = filterStatus === 'all' || 
+      (filterStatus === 'available' && member.deliveryBoyInfo?.isAvailable !== false && member.isActive) ||
+      (filterStatus === 'busy' && member.deliveryBoyInfo?.isAvailable === false) ||
+      (filterStatus === 'inactive' && !member.isActive);
+    
+    return matchesSearch && matchesStatus;
+  });
+
+  const teamStats = {
+    total: deliveryTeam.length,
+    available: deliveryTeam.filter(m => m.deliveryBoyInfo?.isAvailable !== false && m.isActive).length,
+    busy: deliveryTeam.filter(m => m.deliveryBoyInfo?.isAvailable === false).length,
+    inactive: deliveryTeam.filter(m => !m.isActive).length
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      {/* Success Message */}
+      {successMessage && (
+        <div className="fixed top-4 right-4 z-50 max-w-md animate-fade-in">
+          <div className="rounded-lg bg-green-50 p-4 border border-green-200 shadow-lg">
+            <div className="flex items-center">
+              <CheckCircleIcon className="h-5 w-5 text-green-600 mr-3" />
+              <div className="text-sm text-green-700">{successMessage}</div>
+              <button 
+                onClick={() => setSuccessMessage(null)}
+                className="ml-auto text-green-600 hover:text-green-800"
+              >
+                <XCircleIcon className="h-4 w-4" />
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Error Message */}
+      {error && (
+        <div className="fixed top-4 right-4 z-50 max-w-md animate-fade-in">
+          <div className="rounded-lg bg-red-50 p-4 border border-red-200 shadow-lg">
+            <div className="flex items-center">
+              <ExclamationTriangleIcon className="h-5 w-5 text-red-600 mr-3" />
+              <div className="text-sm text-red-700">{error}</div>
+              <button 
+                onClick={() => setError(null)}
+                className="ml-auto text-red-600 hover:text-red-800"
+              >
+                <XCircleIcon className="h-4 w-4" />
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Header */}
+      <div className="sm:flex sm:items-center sm:justify-between">
+        <div>
+          <h1 className="text-xl font-bold text-gray-900">Delivery Team Management</h1>
+          <p className="mt-0.5 text-xs text-gray-500">
+            Manage your self-delivery team members
+          </p>
+        </div>
+        <div className="mt-3 sm:mt-0">
+          <button
+            onClick={() => setShowAddModal(true)}
+            className="inline-flex items-center rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
+          >
+            <PlusIcon className="h-4 w-4 mr-2" />
+            Add Delivery Person
+          </button>
+        </div>
+      </div>
+
+      {/* Stats Cards */}
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-6">
+        <div 
+          onClick={() => setFilterStatus('all')}
+          className={`bg-white overflow-hidden rounded-lg border-2 cursor-pointer transition-all ${
+            filterStatus === 'all' 
+              ? 'border-blue-500 shadow-md' 
+              : 'border-gray-200 hover:border-blue-300 hover:shadow-sm'
+          }`}
+        >
+          <div className="p-4">
+            <div className="flex items-center">
+              <div className="shrink-0">
+                <UserGroupIcon className="h-6 w-6 text-blue-600" />
+              </div>
+              <div className="ml-3 w-0 flex-1">
+                <dl>
+                  <dt className="text-xs font-medium text-gray-500 truncate">Total Team</dt>
+                  <dd className="text-lg font-semibold text-gray-900">{teamStats.total}</dd>
+                </dl>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div 
+          onClick={() => setFilterStatus(filterStatus === 'available' ? 'all' : 'available')}
+          className={`bg-white overflow-hidden rounded-lg border-2 cursor-pointer transition-all ${
+            filterStatus === 'available' 
+              ? 'border-green-500 shadow-md' 
+              : 'border-green-200 hover:border-green-300 hover:shadow-sm'
+          }`}
+        >
+          <div className="p-4">
+            <div className="flex items-center">
+              <div className="shrink-0">
+                <CheckCircleIcon className="h-6 w-6 text-green-600" />
+              </div>
+              <div className="ml-3 w-0 flex-1">
+                <dl>
+                  <dt className="text-xs font-medium text-gray-500 truncate">Available</dt>
+                  <dd className="text-lg font-semibold text-gray-900">{teamStats.available}</dd>
+                </dl>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div 
+          onClick={() => setFilterStatus(filterStatus === 'busy' ? 'all' : 'busy')}
+          className={`bg-white overflow-hidden rounded-lg border-2 cursor-pointer transition-all ${
+            filterStatus === 'busy' 
+              ? 'border-yellow-500 shadow-md' 
+              : 'border-yellow-200 hover:border-yellow-300 hover:shadow-sm'
+          }`}
+        >
+          <div className="p-4">
+            <div className="flex items-center">
+              <div className="shrink-0">
+                <TruckIcon className="h-6 w-6 text-yellow-600" />
+              </div>
+              <div className="ml-3 w-0 flex-1">
+                <dl>
+                  <dt className="text-xs font-medium text-gray-500 truncate">On Delivery</dt>
+                  <dd className="text-lg font-semibold text-gray-900">{teamStats.busy}</dd>
+                </dl>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div 
+          onClick={() => setFilterStatus(filterStatus === 'inactive' ? 'all' : 'inactive')}
+          className={`bg-white overflow-hidden rounded-lg border-2 cursor-pointer transition-all ${
+            filterStatus === 'inactive' 
+              ? 'border-gray-500 shadow-md' 
+              : 'border-gray-200 hover:border-gray-300 hover:shadow-sm'
+          }`}
+        >
+          <div className="p-4">
+            <div className="flex items-center">
+              <div className="shrink-0">
+                <ClockIcon className="h-6 w-6 text-gray-600" />
+              </div>
+              <div className="ml-3 w-0 flex-1">
+                <dl>
+                  <dt className="text-xs font-medium text-gray-500 truncate">Inactive</dt>
+                  <dd className="text-lg font-semibold text-gray-900">{teamStats.inactive}</dd>
+                </dl>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Search and Filters */}
+      <div className="bg-white rounded-lg border border-gray-200 p-4">
+        <div className="flex flex-col sm:flex-row gap-3">
+          {/* Search Bar */}
+          <div className="flex-1">
+            <div className="relative">
+              <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
+                <MagnifyingGlassIcon className="h-4 w-4 text-gray-400" />
+              </div>
+              <input
+                type="text"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                placeholder="Search by name, phone or email..."
+                className="block w-full rounded-lg border border-gray-300 pl-10 pr-3 py-2 text-sm placeholder-gray-400 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+              />
+            </div>
+          </div>
+
+          {/* Status Filter */}
+          <div className="w-full sm:w-48">
+            <select
+              value={filterStatus}
+              onChange={(e) => setFilterStatus(e.target.value)}
+              className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+            >
+              <option value="all">All Status</option>
+              <option value="available">Available</option>
+              <option value="busy">On Delivery</option>
+              <option value="inactive">Inactive</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      {/* Delivery Team Table */}
+      <div className="bg-white rounded-lg overflow-hidden border border-gray-200">
+        <div className="overflow-x-auto">
+          <table className="min-w-full divide-y divide-gray-200">
+            <thead className="bg-gray-50">
+              <tr>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Delivery Person
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Contact
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Vehicle Info
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Status
+                </th>
+                <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Actions
+                </th>
+              </tr>
+            </thead>
+            <tbody className="bg-white divide-y divide-gray-200">
+              {filteredTeam.length === 0 ? (
+                <tr>
+                  <td colSpan="5" className="px-4 py-8 text-center text-sm text-gray-500">
+                    {searchTerm || filterStatus !== 'all'
+                      ? 'No delivery persons match your filters'
+                      : 'No delivery team members yet. Add your first team member to get started.'}
+                  </td>
+                </tr>
+              ) : (
+                filteredTeam.map((member) => (
+                  <tr key={member._id} className="hover:bg-gray-50">
+                    <td className="px-4 py-3">
+                      <div className="flex items-center">
+                        <div className="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center">
+                          <span className="text-blue-700 font-medium text-sm">
+                            {member.name?.charAt(0).toUpperCase() || 'D'}
+                          </span>
+                        </div>
+                        <div className="ml-3">
+                          <div className="text-sm font-medium text-gray-900">{member.name}</div>
+                          <div className="text-xs text-gray-500">
+                            ID: {member._id?.slice(-8)}
+                          </div>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="space-y-1">
+                        <div className="flex items-center text-xs text-gray-600">
+                          <PhoneIcon className="h-3 w-3 mr-1.5" />
+                          {member.phoneNumber || 'N/A'}
+                        </div>
+                        <div className="flex items-center text-xs text-gray-500">
+                          <EnvelopeIcon className="h-3 w-3 mr-1.5" />
+                          {member.email || 'N/A'}
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="space-y-1">
+                        <div className="text-xs text-gray-900">
+                          {member.deliveryBoyInfo?.vehicleType || 'Not specified'}
+                        </div>
+                        <div className="text-xs text-gray-500">
+                          {member.deliveryBoyInfo?.vehicleNumber || 'No vehicle number'}
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="space-y-2">
+                        <div>
+                          {member.isActive ? (
+                            member.deliveryBoyInfo?.isAvailable !== false ? (
+                              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                <div className="w-2 h-2 bg-green-500 rounded-full mr-1.5"></div>
+                                Available
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+                                <div className="w-2 h-2 bg-yellow-500 rounded-full mr-1.5"></div>
+                                On Delivery
+                              </span>
+                            )
+                          ) : (
+                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                              <div className="w-2 h-2 bg-gray-500 rounded-full mr-1.5"></div>
+                              Inactive
+                            </span>
+                          )}
+                        </div>
+                        {member.isActive && (
+                          <button
+                            onClick={() => handleUpdateStatus(member._id, member.deliveryBoyInfo?.isAvailable)}
+                            className="text-xs text-blue-600 hover:text-blue-800"
+                          >
+                            Toggle Status
+                          </button>
+                        )}
+                      </div>
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="flex justify-center gap-2">
+                        <button
+                          onClick={() => handleRemoveDeliveryBoy(member._id)}
+                          className="inline-flex items-center px-2.5 py-1.5 text-xs font-medium text-red-700 bg-red-50 border border-red-200 rounded hover:bg-red-100"
+                        >
+                          <TrashIcon className="h-3.5 w-3.5 mr-1" />
+                          Remove
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* Add Delivery Person Modal */}
+      {showAddModal && (
+        <div className="fixed inset-0 z-50 overflow-y-auto">
+          <div className="flex items-center justify-center min-h-screen pt-4 px-4 pb-20">
+            <div 
+              className="fixed inset-0 bg-black/50 transition-opacity" 
+              onClick={() => setShowAddModal(false)}
+            ></div>
+            
+            <div className="relative bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:max-w-2xl sm:w-full z-10">
+              <form onSubmit={handleAddDeliveryBoy}>
+                <div className="bg-white px-6 py-4 border-b border-gray-200">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h3 className="text-lg font-bold text-gray-900">
+                        Add Delivery Person
+                      </h3>
+                      <p className="text-xs text-gray-500 mt-0.5">
+                        Add a new member to your delivery team
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setShowAddModal(false)}
+                      className="text-gray-400 hover:text-gray-600"
+                    >
+                      <XCircleIcon className="h-6 w-6" />
+                    </button>
+                  </div>
+                </div>
+                
+                <div className="bg-gray-50 px-6 py-4 max-h-[60vh] overflow-y-auto">
+                  <div className="space-y-4">
+                    {/* Basic Information */}
+                    <div>
+                      <h4 className="text-sm font-semibold text-gray-900 mb-3">Basic Information</h4>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <label className="block text-xs font-medium text-gray-700 mb-1">
+                            Full Name *
+                          </label>
+                          <input
+                            type="text"
+                            name="name"
+                            value={formData.name}
+                            onChange={handleInputChange}
+                            placeholder="e.g., Rajesh Sharma"
+                            required
+                            className="block w-full rounded-md border border-gray-300 px-3 py-2 text-sm placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-medium text-gray-700 mb-1">
+                            Phone Number *
+                          </label>
+                          <input
+                            type="tel"
+                            name="phoneNumber"
+                            value={formData.phoneNumber}
+                            onChange={handleInputChange}
+                            placeholder="e.g., +919876543210"
+                            required
+                            className="block w-full rounded-md border border-gray-300 px-3 py-2 text-sm placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-medium text-gray-700 mb-1">
+                            Email *
+                          </label>
+                          <input
+                            type="email"
+                            name="email"
+                            value={formData.email}
+                            onChange={handleInputChange}
+                            placeholder="e.g., rajesh.sharma@example.com"
+                            required
+                            className="block w-full rounded-md border border-gray-300 px-3 py-2 text-sm placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-medium text-gray-700 mb-1">
+                            Password *
+                          </label>
+                          <input
+                            type="password"
+                            name="password"
+                            value={formData.password}
+                            onChange={handleInputChange}
+                            placeholder="Minimum 6 characters"
+                            required
+                            className="block w-full rounded-md border border-gray-300 px-3 py-2 text-sm placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-medium text-gray-700 mb-1">
+                            Mobile Number *
+                          </label>
+                          <input
+                            type="tel"
+                            name="mobileNumber"
+                            value={formData.mobileNumber}
+                            onChange={handleInputChange}
+                            placeholder="e.g., 9876543210"
+                            required
+                            className="block w-full rounded-md border border-gray-300 px-3 py-2 text-sm placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-medium text-gray-700 mb-1">
+                            Alternate Number
+                          </label>
+                          <input
+                            type="tel"
+                            name="alternateNumber"
+                            value={formData.alternateNumber}
+                            onChange={handleInputChange}
+                            placeholder="Optional alternate contact"
+                            className="block w-full rounded-md border border-gray-300 px-3 py-2 text-sm placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Identification */}
+                    <div>
+                      <h4 className="text-sm font-semibold text-gray-900 mb-3">Identification</h4>
+                      <div className="grid grid-cols-3 gap-3">
+                        <div>
+                          <label className="block text-xs font-medium text-gray-700 mb-1">
+                            PAN Number *
+                          </label>
+                          <input
+                            type="text"
+                            name="panNumber"
+                            value={formData.panNumber}
+                            onChange={handleInputChange}
+                            placeholder="e.g., ABCDE1234F"
+                            required
+                            maxLength="10"
+                            className="block w-full rounded-md border border-gray-300 px-3 py-2 text-sm placeholder:text-gray-400 uppercase focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-medium text-gray-700 mb-1">
+                            Aadhar Number *
+                          </label>
+                          <input
+                            type="text"
+                            name="aadharNumber"
+                            value={formData.aadharNumber}
+                            onChange={handleInputChange}
+                            placeholder="e.g., 1234 5678 9012"
+                            required
+                            maxLength="12"
+                            className="block w-full rounded-md border border-gray-300 px-3 py-2 text-sm placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-medium text-gray-700 mb-1">
+                            Experience (Years) *
+                          </label>
+                          <input
+                            type="number"
+                            name="experienceYears"
+                            value={formData.experienceYears}
+                            onChange={handleInputChange}
+                            placeholder="e.g., 2"
+                            required
+                            min="0"
+                            max="50"
+                            className="block w-full rounded-md border border-gray-300 px-3 py-2 text-sm placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Vehicle Information */}
+                    <div>
+                      <h4 className="text-sm font-semibold text-gray-900 mb-3">Vehicle Information</h4>
+                      <div className="grid grid-cols-3 gap-3">
+                        <div>
+                          <label className="block text-xs font-medium text-gray-700 mb-1">
+                            Vehicle Type *
+                          </label>
+                          <select
+                            name="vehicleType"
+                            value={formData.vehicleType}
+                            onChange={handleInputChange}
+                            required
+                            className="block w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                          >
+                            <option value="">Select Type</option>
+                            <option value="motorcycle">Motorcycle</option>
+                            <option value="scooter">Scooter</option>
+                            <option value="bicycle">Bicycle</option>
+                            <option value="car">Car</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label className="block text-xs font-medium text-gray-700 mb-1">
+                            Vehicle Number *
+                          </label>
+                          <input
+                            type="text"
+                            name="vehicleNumber"
+                            value={formData.vehicleNumber}
+                            onChange={handleInputChange}
+                            placeholder="e.g., MH12AB1234"
+                            required
+                            className="block w-full rounded-md border border-gray-300 px-3 py-2 text-sm placeholder:text-gray-400 uppercase focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-medium text-gray-700 mb-1">
+                            License Number *
+                          </label>
+                          <input
+                            type="text"
+                            name="licenseNumber"
+                            value={formData.licenseNumber}
+                            onChange={handleInputChange}
+                            placeholder="e.g., MH1220190012345"
+                            required
+                            className="block w-full rounded-md border border-gray-300 px-3 py-2 text-sm placeholder:text-gray-400 uppercase focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Bank Details */}
+                    <div>
+                      <h4 className="text-sm font-semibold text-gray-900 mb-3">Bank Details</h4>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <label className="block text-xs font-medium text-gray-700 mb-1">
+                            Account Holder Name *
+                          </label>
+                          <input
+                            type="text"
+                            name="accountHolderName"
+                            value={formData.accountHolderName}
+                            onChange={handleInputChange}
+                            placeholder="e.g., Rajesh Sharma"
+                            required
+                            className="block w-full rounded-md border border-gray-300 px-3 py-2 text-sm placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-medium text-gray-700 mb-1">
+                            Account Number *
+                          </label>
+                          <input
+                            type="text"
+                            name="accountNumber"
+                            value={formData.accountNumber}
+                            onChange={handleInputChange}
+                            placeholder="e.g., 123456789012"
+                            required
+                            className="block w-full rounded-md border border-gray-300 px-3 py-2 text-sm placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-medium text-gray-700 mb-1">
+                            IFSC Code *
+                          </label>
+                          <input
+                            type="text"
+                            name="ifsc"
+                            value={formData.ifsc}
+                            onChange={handleInputChange}
+                            placeholder="e.g., SBIN0001234"
+                            required
+                            maxLength="11"
+                            className="block w-full rounded-md border border-gray-300 px-3 py-2 text-sm placeholder:text-gray-400 uppercase focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-medium text-gray-700 mb-1">
+                            UPI ID
+                          </label>
+                          <input
+                            type="text"
+                            name="upiId"
+                            value={formData.upiId}
+                            onChange={handleInputChange}
+                            placeholder="e.g., 9876543210@paytm"
+                            className="block w-full rounded-md border border-gray-300 px-3 py-2 text-sm placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Address */}
+                    <div>
+                      <h4 className="text-sm font-semibold text-gray-900 mb-3">Address</h4>
+                      <div className="space-y-3">
+                        <div>
+                          <label className="block text-xs font-medium text-gray-700 mb-1">
+                            Street Address *
+                          </label>
+                          <input
+                            type="text"
+                            name="address"
+                            value={formData.address}
+                            onChange={handleInputChange}
+                            placeholder="e.g., 123 Main Street, Near City Mall"
+                            required
+                            className="block w-full rounded-md border border-gray-300 px-3 py-2 text-sm placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                          />
+                        </div>
+                        <div className="grid grid-cols-3 gap-3">
+                          <div>
+                            <label className="block text-xs font-medium text-gray-700 mb-1">
+                              City *
+                            </label>
+                            <input
+                              type="text"
+                              name="city"
+                              value={formData.city}
+                              onChange={handleInputChange}
+                              placeholder="e.g., Mumbai"
+                              required
+                              className="block w-full rounded-md border border-gray-300 px-3 py-2 text-sm placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-xs font-medium text-gray-700 mb-1">
+                              State *
+                            </label>
+                            <input
+                              type="text"
+                              name="state"
+                              value={formData.state}
+                              onChange={handleInputChange}
+                              placeholder="e.g., Maharashtra"
+                              required
+                              className="block w-full rounded-md border border-gray-300 px-3 py-2 text-sm placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-xs font-medium text-gray-700 mb-1">
+                              Pincode *
+                            </label>
+                            <input
+                              type="text"
+                              name="pincode"
+                              value={formData.pincode}
+                              onChange={handleInputChange}
+                              placeholder="e.g., 400001"
+                              required
+                              maxLength="6"
+                              className="block w-full rounded-md border border-gray-300 px-3 py-2 text-sm placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Emergency Contact */}
+                    <div>
+                      <h4 className="text-sm font-semibold text-gray-900 mb-3">Emergency Contact</h4>
+                      <div className="grid grid-cols-3 gap-3">
+                        <div>
+                          <label className="block text-xs font-medium text-gray-700 mb-1">
+                            Contact Name *
+                          </label>
+                          <input
+                            type="text"
+                            name="emergencyContact.name"
+                            value={formData.emergencyContact.name}
+                            onChange={handleInputChange}
+                            placeholder="e.g., Suresh Kumar"
+                            required
+                            className="block w-full rounded-md border border-gray-300 px-3 py-2 text-sm placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-medium text-gray-700 mb-1">
+                            Contact Phone *
+                          </label>
+                          <input
+                            type="tel"
+                            name="emergencyContact.phone"
+                            value={formData.emergencyContact.phone}
+                            onChange={handleInputChange}
+                            placeholder="e.g., 9123456789"
+                            required
+                            className="block w-full rounded-md border border-gray-300 px-3 py-2 text-sm placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-medium text-gray-700 mb-1">
+                            Relation *
+                          </label>
+                          <select
+                            name="emergencyContact.relation"
+                            value={formData.emergencyContact.relation}
+                            onChange={handleInputChange}
+                            required
+                            className="block w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                          >
+                            <option value="">Select Relation</option>
+                            <option value="Father">Father</option>
+                            <option value="Mother">Mother</option>
+                            <option value="Brother">Brother</option>
+                            <option value="Sister">Sister</option>
+                            <option value="Spouse">Spouse</option>
+                            <option value="Friend">Friend</option>
+                            <option value="Other">Other</option>
+                          </select>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Document Verification Notice */}
+                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                      <div className="flex items-start">
+                        <DocumentTextIcon className="h-5 w-5 text-blue-600 mt-0.5 mr-3 shrink-0" />
+                        <div>
+                          <h5 className="text-sm font-semibold text-blue-900 mb-1">
+                            Document Verification Required
+                          </h5>
+                          <p className="text-xs text-blue-700">
+                            After registration, the delivery person will need to upload the following documents for verification:
+                          </p>
+                          <ul className="mt-2 text-xs text-blue-700 space-y-1 ml-4 list-disc">
+                            <li>Aadhar Card</li>
+                            <li>PAN Card</li>
+                            <li>Driving License</li>
+                            <li>Vehicle RC (Registration Certificate)</li>
+                            <li>Bank Passbook</li>
+                            <li>Vehicle Photo</li>
+                            <li>Profile Photo</li>
+                          </ul>
+                          <p className="text-xs text-blue-700 mt-2">
+                            The delivery person can upload these documents through their mobile app after logging in.
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="bg-gray-50 px-6 py-3 border-t border-gray-200 flex justify-end gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowAddModal(false)}
+                    className="inline-flex items-center rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="inline-flex items-center rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
+                  >
+                    <PlusIcon className="h-4 w-4 mr-1.5" />
+                    Add Delivery Person
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default DeliveryTeamManagement;

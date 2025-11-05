@@ -124,6 +124,26 @@ export const getAllDeliveryTeam = async () => {
   return apiRequest('/vendor/delivery-team');
 };
 
+export const addDeliveryBoy = async (deliveryBoyData) => {
+  return apiRequest('/vendor/delivery-team', {
+    method: 'POST',
+    body: JSON.stringify(deliveryBoyData),
+  });
+};
+
+export const updateDeliveryBoyStatus = async (deliveryBoyId, statusData) => {
+  return apiRequest(`/vendor/delivery-team/${deliveryBoyId}`, {
+    method: 'PUT',
+    body: JSON.stringify(statusData),
+  });
+};
+
+export const removeDeliveryBoy = async (deliveryBoyId) => {
+  return apiRequest(`/vendor/delivery-team/${deliveryBoyId}`, {
+    method: 'DELETE',
+  });
+};
+
 // Vendor Products APIs (for product selection and inventory)
 export const getVendorProducts = async (params = {}) => {
   const queryString = new URLSearchParams(params).toString();
