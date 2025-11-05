@@ -49,6 +49,32 @@ const apiRequest = async (endpoint, options = {}) => {
   }
 };
 
+// Get vendor products directly created by vendor (via /vendor/products endpoint)
+// This endpoint gets products created by the vendor using req.user.id from JWT token
+// Backend response structure: { success: true, count, total, pagination: { page, pages }, data: [...products] }
+// Supports: page, limit, status, category, search
+export const getVendorProducts = async (params = {}) => {
+  console.log('getVendorProducts called with params:', params);
+
+  const filteredParams = Object.entries(params).reduce((acc, [key, value]) => {
+    if (value !== undefined && value !== null && value !== '' && value !== 'all') {
+      acc[key] = value;
+    }
+    return acc;
+  }, {});
+
+  const queryString = new URLSearchParams(filteredParams).toString();
+  const endpoint = `/vendor/products${queryString ? `?${queryString}` : ''}`;
+
+  console.log('Fetching from endpoint:', endpoint);
+
+  const response = await apiRequest(endpoint);
+
+  console.log('API Response:', response);
+
+  return response;
+};
+
 // Get MY vendor products using authenticated user (my-products endpoint)
 // This endpoint automatically gets vendor ID from req.user.id (JWT token)
 // Backend response structure: { success: true, count, total, pagination: { page, pages }, data: [...vendorProducts] }
@@ -106,14 +132,14 @@ export const getProduct = async (id) => {
 
 // Add new product
 export const addProduct = async (productData) => {
+  console.log('addProduct called with:', productData);
+
   // Transform frontend data to backend format
   const backendData = {
     name: productData.name,
     description: productData.description,
     'pricing[sellingPrice]': parseFloat(productData.price),
     category: productData.category,
-    'inventory[stock]': parseInt(productData.stock),
-    status: productData.status || 'active',
     sku: productData.sku,
     'weight[value]': productData.weight ? parseFloat(productData.weight) : undefined,
     'weight[unit]': 'kg' // Default unit
@@ -126,10 +152,15 @@ export const addProduct = async (productData) => {
     }
   });
 
-  return apiRequest('/vendor/products', {
+  console.log('Sending to backend:', backendData);
+
+  const response = await apiRequest('/vendor/products', {
     method: 'POST',
     body: JSON.stringify(backendData),
   });
+
+  console.log('addProduct response:', response);
+  return response;
 };
 
 // Update existing product
@@ -216,6 +247,7 @@ export const formatDateTime = (dateString) => {
 };
 
 export default {
+  getVendorProducts,
   getMyVendorProducts,
   getProductsByVendor,
   getProduct,
