@@ -16,9 +16,12 @@ import {
   ShoppingBagIcon,
   ArrowPathIcon,
   DocumentArrowDownIcon,
-  ExclamationTriangleIcon
+  ExclamationTriangleIcon,
+  WifiIcon
 } from '@heroicons/react/24/outline';
 import { getOrders, updateOrderStatus, getVendorProfile, getAvailableDeliveryBoys, assignDeliveryBoy, getAllDeliveryTeam } from '../utils/api';
+import notificationService from '../utils/notificationService';
+import OrderNotificationPopup from './OrderNotificationPopup';
 
 const OrderManagement = () => {
   const [orders, setOrders] = useState([]);
@@ -44,13 +47,102 @@ const OrderManagement = () => {
   const [showAssignDelivery, setShowAssignDelivery] = useState(false);
   const [selectedDeliveryBoy, setSelectedDeliveryBoy] = useState('');
   const [assigningDelivery, setAssigningDelivery] = useState(false);
+  const [sseConnected, setSseConnected] = useState(false);
+  const [notificationQueue, setNotificationQueue] = useState([]);
   const statusDropdownRef = useRef(null);
   const dateDropdownRef = useRef(null);
 
   useEffect(() => {
     fetchOrders();
     fetchVendorProfile();
+    setupSSEConnection();
+    requestNotificationPermission();
+
+    // Cleanup on unmount
+    return () => {
+      notificationService.disconnect();
+    };
   }, []);
+
+  // Setup SSE connection for real-time updates
+  const setupSSEConnection = () => {
+    // Request notification permission first
+    notificationService.requestNotificationPermission();
+
+    // Connect to SSE
+    const vendorData = JSON.parse(localStorage.getItem('vendor_user') || '{}');
+    if (vendorData._id) {
+      notificationService.connect(vendorData._id);
+    }
+
+    // Listen for connection status
+    const removeConnectedListener = notificationService.addListener('connected', () => {
+      setSseConnected(true);
+      console.log('✅ Real-time notifications enabled');
+    });
+
+    const removeDisconnectedListener = notificationService.addListener('disconnected', () => {
+      setSseConnected(false);
+      console.log('❌ Real-time notifications disabled');
+    });
+
+    // Listen for new orders
+    const removeNewOrderListener = notificationService.addListener('new_order', (order) => {
+      console.log('🆕 New order notification:', order);
+      
+      // Add to notification queue
+      setNotificationQueue(prev => [...prev, order]);
+      
+      // Refresh orders list
+      fetchOrders(true);
+      
+      // Show success message
+      setSuccessMessage(`New order received! Order #${order.orderNumber || order._id?.slice(-8)}`);
+      setTimeout(() => setSuccessMessage(null), 5000);
+    });
+
+    // Listen for order updates
+    const removeOrderUpdateListener = notificationService.addListener('order_updated', (order) => {
+      console.log('🔄 Order updated:', order);
+      
+      // Refresh orders list
+      fetchOrders(true);
+    });
+
+    // Store cleanup functions
+    return () => {
+      removeConnectedListener();
+      removeDisconnectedListener();
+      removeNewOrderListener();
+      removeOrderUpdateListener();
+    };
+  };
+
+  // Request notification permission
+  const requestNotificationPermission = async () => {
+    const permission = await notificationService.requestNotificationPermission();
+    if (permission === 'granted') {
+      console.log('✅ Notification permission granted');
+    } else if (permission === 'denied') {
+      console.warn('❌ Notification permission denied');
+    }
+  };
+
+  // Remove notification from queue
+  const removeNotification = (orderId) => {
+    setNotificationQueue(prev => prev.filter(order => order._id !== orderId));
+  };
+
+  // View order from notification
+  const viewOrderFromNotification = (order) => {
+    // Find the full order in the orders list
+    const fullOrder = orders.find(o => o.id === order._id);
+    if (fullOrder) {
+      setSelectedOrder(fullOrder);
+      setShowOrderDetails(true);
+    }
+    removeNotification(order._id);
+  };
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -417,6 +509,25 @@ const OrderManagement = () => {
 
   return (
     <div className="space-y-4">
+      {/* Order Notification Popups - Stacked */}
+      {notificationQueue.map((order, index) => (
+        <div 
+          key={order._id} 
+          style={{ 
+            position: 'fixed',
+            top: `${80 + (index * 10)}px`,
+            right: '16px',
+            zIndex: 100 - index
+          }}
+        >
+          <OrderNotificationPopup
+            order={order}
+            onClose={() => removeNotification(order._id)}
+            onView={viewOrderFromNotification}
+          />
+        </div>
+      ))}
+
       {/* Success/Error Messages - Fixed at top */}
       {successMessage && (
         <div className="fixed top-4 right-4 z-50 max-w-md animate-fade-in">
@@ -459,9 +570,20 @@ const OrderManagement = () => {
       {/* Header */}
       <div className="sm:flex sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-xl font-bold text-gray-900">Order Management</h1>
+          <div className="flex items-center gap-3">
+            <h1 className="text-xl font-bold text-gray-900">Order Management</h1>
+            {/* SSE Connection Status */}
+            <div className={`flex items-center gap-1.5 px-2 py-1 rounded-full text-xs font-medium ${
+              sseConnected 
+                ? 'bg-green-100 text-green-700' 
+                : 'bg-gray-100 text-gray-600'
+            }`}>
+              <WifiIcon className={`h-3.5 w-3.5 ${sseConnected ? 'animate-pulse' : ''}`} />
+              <span>{sseConnected ? 'Live' : 'Offline'}</span>
+            </div>
+          </div>
           <p className="mt-0.5 text-xs text-gray-500">
-            Track and manage your incoming orders
+            Track and manage your incoming orders {sseConnected && '• Real-time updates enabled'}
           </p>
         </div>
         <div className="mt-3 sm:mt-0 flex space-x-2">
