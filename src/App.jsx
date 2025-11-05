@@ -209,7 +209,7 @@ const VendorLayout = ({ children }) => {
       }`}>
         {/* Top header */}
         <header className="sticky top-0 z-30 bg-white border-b border-gray-200">
-          <div className="flex h-13.75 items-center justify-between px-6">
+          <div className="flex h-14 items-center justify-between px-6">
             <div className="flex items-center gap-x-4">
               <button
                 type="button"
@@ -218,7 +218,6 @@ const VendorLayout = ({ children }) => {
               >
                 <Bars3Icon className="h-6 w-6" />
               </button>
-              
             </div>
 
             <div className="flex items-center gap-x-2">
@@ -266,45 +265,65 @@ const SidebarContent = ({ navigation, onClose, isActive, handleLogout, collapsed
   return (
     <div className="flex h-full flex-col bg-white overflow-hidden">
       {/* Sidebar Header */}
-      <div className="flex h-14 shrink-0 items-center justify-between px-3 border-b border-gray-200">
+      <div className="flex h-14 shrink-0 items-center px-3 border-b border-gray-200">
         {!collapsed && (
-          <div className="flex items-center gap-x-2">
-            <div className="h-8 w-8 rounded-lg bg-blue-600 flex items-center justify-center">
-              <BuildingStorefrontIcon className="h-4 w-4 text-white" />
+          <>
+            <div className="flex items-center gap-x-2 flex-1">
+              <div className="h-8 w-8 rounded-lg bg-blue-600 flex items-center justify-center">
+                <BuildingStorefrontIcon className="h-4 w-4 text-white" />
+              </div>
+              <div>
+                <span className="text-base font-medium text-gray-900 font-['Gilroy']">Lalaji</span>
+                <p className="text-xs text-gray-500 font-['Gilroy'] -mt-0.5">Vendor Portal</p>
+              </div>
             </div>
-            <div>
-              <span className="text-base font-medium text-gray-900 font-['Gilroy']">Lalaji</span>
-              <p className="text-xs text-gray-500 font-['Gilroy'] -mt-0.5">Vendor Portal</p>
-            </div>
-          </div>
+            {!isMobile && (
+              <button
+                type="button"
+                className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-all shrink-0"
+                onClick={onToggleCollapse}
+              >
+                <Bars3Icon className="h-5 w-5" />
+              </button>
+            )}
+          </>
         )}
         {collapsed && !isMobile && (
-          <div className="h-8 w-8 rounded-lg bg-blue-600 flex items-center justify-center">
-            <BuildingStorefrontIcon className="h-4 w-4 text-white" />
+          <div className="flex items-center justify-center w-full h-full">
+            <button
+              type="button"
+              className="p-2 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all"
+              onClick={onToggleCollapse}
+              title="Expand sidebar"
+            >
+              <Bars3Icon className="h-5 w-5" />
+            </button>
           </div>
         )}
         {isMobile && (
-          <button
-            type="button"
-            className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-all"
-            onClick={onClose}
-          >
-            <XMarkIcon className="h-5 w-5" />
-          </button>
-        )}
-        {!isMobile && (
-          <button
-            type="button"
-            className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-all"
-            onClick={onToggleCollapse}
-          >
-            <Bars3Icon className="h-5 w-5" />
-          </button>
+          <>
+            <div className="flex items-center gap-x-2 flex-1">
+              <div className="h-8 w-8 rounded-lg bg-blue-600 flex items-center justify-center">
+                <BuildingStorefrontIcon className="h-4 w-4 text-white" />
+              </div>
+              <div>
+                <span className="text-base font-medium text-gray-900 font-['Gilroy']">Lalaji</span>
+                <p className="text-xs text-gray-500 font-['Gilroy'] -mt-0.5">Vendor Portal</p>
+              </div>
+            </div>
+            <button
+              type="button"
+              className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-all shrink-0"
+              onClick={onClose}
+            >
+              <XMarkIcon className="h-5 w-5" />
+            </button>
+          </>
         )}
       </div>
 
-      <nav className="flex flex-1 flex-col px-2 py-3 overflow-y-auto">
-        <ul role="list" className="flex flex-1 flex-col gap-y-1">
+      <nav className="flex flex-1 flex-col py-3 overflow-y-auto">
+        <ul role="list" className="flex flex-1 flex-col gap-y-1 px-2">
           {navigation.map((section, sectionIdx) => (
             <li key={sectionIdx}>
               {!collapsed && (
@@ -341,7 +360,7 @@ const SidebarContent = ({ navigation, onClose, isActive, handleLogout, collapsed
           ))}
 
           {/* Delivery Model Toggle */}
-          <li className="mt-auto mb-2">
+          <li className="mt-auto mb-2 px-0">
             {!collapsed ? (
               <div className="bg-blue-50 rounded-lg p-2.5 border border-blue-100">
                 <div className="flex items-center justify-between mb-2">
@@ -375,27 +394,25 @@ const SidebarContent = ({ navigation, onClose, isActive, handleLogout, collapsed
                 </div>
               </div>
             ) : (
-              <div className="relative group">
-                <button
-                  onClick={onToggleDelivery}
-                  disabled={isTogglingDelivery}
-                  className={`w-full flex justify-center p-2 rounded-lg transition-all ${
-                    deliveryModel === 'lalaji_network' 
-                      ? 'bg-blue-50 hover:bg-blue-100' 
-                      : 'bg-green-50 hover:bg-green-100'
-                  } ${isTogglingDelivery ? 'opacity-50 cursor-not-allowed' : ''}`}
-                  title={`Delivery: ${deliveryModel === 'lalaji_network' ? 'Lalaji Network' : 'Self Delivery'} - Click to toggle`}
-                >
-                  <TruckIcon className={`h-5 w-5 ${
-                    deliveryModel === 'lalaji_network' ? 'text-blue-600' : 'text-green-600'
-                  }`} />
-                </button>
-              </div>
+              <button
+                onClick={onToggleDelivery}
+                disabled={isTogglingDelivery}
+                className={`w-full flex justify-center p-2 rounded-lg transition-all ${
+                  deliveryModel === 'lalaji_network' 
+                    ? 'bg-blue-50 hover:bg-blue-100' 
+                    : 'bg-green-50 hover:bg-green-100'
+                } ${isTogglingDelivery ? 'opacity-50 cursor-not-allowed' : ''}`}
+                title={`Delivery: ${deliveryModel === 'lalaji_network' ? 'Lalaji Network' : 'Self Delivery'} - Click to toggle`}
+              >
+                <TruckIcon className={`h-5 w-5 ${
+                  deliveryModel === 'lalaji_network' ? 'text-blue-600' : 'text-green-600'
+                }`} />
+              </button>
             )}
           </li>
 
           {/* Logout button */}
-          <li>
+          <li className="px-0">
             <button
               onClick={handleLogout}
               className={`group flex w-full gap-x-2 rounded-lg p-2 text-sm font-medium transition-all duration-200 font-['Gilroy'] ${
