@@ -134,20 +134,53 @@ export const getProduct = async (id) => {
 export const addProduct = async (productData) => {
   console.log('addProduct called with:', productData);
 
-  // Transform frontend data to backend format
+  // Transform frontend data to backend format with nested objects
   const backendData = {
     name: productData.name,
     description: productData.description,
-    'pricing[sellingPrice]': parseFloat(productData.price),
-    category: productData.category,
+    shortDescription: productData.shortDescription,
     sku: productData.sku,
+    category: productData.category,
+    subcategory: productData.subcategory,
+    status: productData.status,
+    dimensions: productData.dimensions,
+
+    // Pricing nested object
+    'pricing[sellingPrice]': productData.price ? parseFloat(productData.price) : undefined,
+    'pricing[costPrice]': productData.costPrice ? parseFloat(productData.costPrice) : undefined,
+    'pricing[suggestedMRP]': productData.suggestedMRP ? parseFloat(productData.suggestedMRP) : undefined,
+    'pricing[minSellingPrice]': productData.minSellingPrice ? parseFloat(productData.minSellingPrice) : undefined,
+
+    // Weight nested object
     'weight[value]': productData.weight ? parseFloat(productData.weight) : undefined,
-    'weight[unit]': 'kg' // Default unit
+    'weight[unit]': productData.weightUnit || 'kg',
+
+    // Additional details
+    manufacturingDate: productData.manufacturingDate,
+    expiryDate: productData.expiryDate,
+    perishable: productData.perishable,
+
+    // Nutritional info
+    calories: productData.calories,
+    protein: productData.protein,
+    carbohydrates: productData.carbohydrates,
+    fat: productData.fat,
+    fiber: productData.fiber,
+    sugar: productData.sugar,
+    sodium: productData.sodium,
+
+    // SEO
+    seoTitle: productData.seoTitle,
+    seoDescription: productData.seoDescription,
+
+    // Tags and ingredients (if arrays)
+    tags: productData.tags,
+    ingredients: productData.ingredients
   };
 
-  // Remove undefined values
+  // Remove undefined, null, and empty string values
   Object.keys(backendData).forEach(key => {
-    if (backendData[key] === undefined) {
+    if (backendData[key] === undefined || backendData[key] === null || backendData[key] === '') {
       delete backendData[key];
     }
   });

@@ -573,7 +573,7 @@ const ProductManagement = () => {
       </div>
 
       {/* Filters - Super Compact */}
-      <div className="bg-white  rounded-lg p-2.5">
+      <div className="bg-white border border-gray-200 rounded-lg p-2.5">
         <div className="flex flex-wrap items-center gap-2">
           {/* Search */}
           <div className="relative flex-1 min-w-[180px]">
@@ -612,12 +612,6 @@ const ProductManagement = () => {
               </option>
             ))}
           </select>
-
-          {/* More Filters Button */}
-          <button className="inline-flex items-center rounded-md border border-gray-300 bg-white px-2 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50">
-            <FunnelIcon className="h-3.5 w-3.5 mr-1" />
-            More
-          </button>
 
           {/* View Toggle Buttons */}
           <div className="ml-auto inline-flex rounded-md border border-gray-300 bg-white p-0.5">
@@ -1189,7 +1183,21 @@ const ProductManagement = () => {
                             <select
                               required
                               value={formData.category}
-                              onChange={(e) => setFormData({...formData, category: e.target.value})}
+                              onChange={(e) => {
+                                const selectedCategory = e.target.value;
+                                setFormData({...formData, category: selectedCategory, subcategory: ''});
+
+                                // Fetch subcategories for the selected category
+                                if (selectedCategory) {
+                                  // Find the category object to get its ID
+                                  const categoryObj = categories.find(cat => cat._id === selectedCategory || cat.id === selectedCategory);
+                                  if (categoryObj) {
+                                    fetchSubcategories(categoryObj._id || categoryObj.id);
+                                  }
+                                } else {
+                                  setSubcategories([]);
+                                }
+                              }}
                               className="block w-full px-3 py-2 rounded-md border border-gray-300 shadow-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 text-sm"
                             >
                               <option value="">Select category</option>
@@ -1255,11 +1263,24 @@ const ProductManagement = () => {
                             />
                           </div>
 
-                          {/* Unit */}
+                          {/* Weight Unit */}
                           <div>
-                            <label className="block text-xs font-medium text-gray-700 mb-1.5">Unit</label>
-                            <select className="block w-full px-3 py-2 rounded-md border border-gray-300 shadow-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 text-sm bg-gray-50" disabled>
-                              <option>kg</option>
+                            <label className="block text-xs font-medium text-gray-700 mb-1.5">Weight Unit</label>
+                            <select
+                              value={formData.weightUnit}
+                              onChange={(e) => setFormData({...formData, weightUnit: e.target.value})}
+                              className="block w-full px-3 py-2 rounded-md border border-gray-300 shadow-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 text-sm"
+                            >
+                              <option value="kg">Kilogram (kg)</option>
+                              <option value="g">Gram (g)</option>
+                              <option value="mg">Milligram (mg)</option>
+                              <option value="lb">Pound (lb)</option>
+                              <option value="oz">Ounce (oz)</option>
+                              <option value="l">Liter (L)</option>
+                              <option value="ml">Milliliter (ml)</option>
+                              <option value="piece">Piece</option>
+                              <option value="dozen">Dozen</option>
+                              <option value="pack">Pack</option>
                             </select>
                           </div>
 
