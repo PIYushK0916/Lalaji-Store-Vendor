@@ -140,7 +140,7 @@ const SelectProducts = () => {
   const [removingProduct, setRemovingProduct] = useState(null);
   const [showRemoveModal, setShowRemoveModal] = useState(false);
   const [productToRemove, setProductToRemove] = useState(null);
-  const [viewMode, setViewMode] = useState('card'); // 'card' or 'table'
+  const [viewMode, setViewMode] = useState('table'); // 'card' or 'table'
   const [statusFilter, setStatusFilter] = useState('all'); // 'all', 'selected', 'available'
 
   // Dropdown options
@@ -363,32 +363,23 @@ const SelectProducts = () => {
 
   // Handle status filter change
   const handleStatusFilterChange = (value) => {
-    console.log('Status filter changed to:', value);
     setStatusFilter(value);
     setCurrentPage(1);
   };
 
   // Filter products based on status
   const filteredProducts = useMemo(() => {
-    console.log('Filtering products with statusFilter:', statusFilter);
-    console.log('Total products:', products.length);
-    console.log('Selected products:', selectedProducts.size);
-    
     if (statusFilter === 'all') {
-      console.log('Returning all products:', products.length);
       return products;
     }
     if (statusFilter === 'selected') {
       const selected = products.filter(p => p.isSelectedByVendor || selectedProducts.has(p._id));
-      console.log('Returning selected products:', selected.length);
       return selected;
     }
     if (statusFilter === 'available') {
       const available = products.filter(p => !p.isSelectedByVendor && !selectedProducts.has(p._id));
-      console.log('Returning available products:', available.length);
       return available;
     }
-    console.log('Returning default products:', products.length);
     return products;
   }, [products, statusFilter, selectedProducts]);
 
@@ -580,7 +571,7 @@ const SelectProducts = () => {
           
           {/* View Mode Toggle */}
           <div className="flex items-center space-x-2">
-            <span className="text-xs text-gray-500">View:</span>
+            <span className="text-sm text-gray-500">View:</span>
             <div className="flex border border-gray-300 rounded-md">
               <button
                 onClick={() => setViewMode('card')}
@@ -590,7 +581,7 @@ const SelectProducts = () => {
                     : 'bg-white text-gray-700 hover:bg-gray-50'
                 }`}
               >
-                <Squares2X2Icon className="h-3 w-3" />
+                <Squares2X2Icon className="h-4 w-4" />
               </button>
               <button
                 onClick={() => setViewMode('table')}
@@ -600,7 +591,7 @@ const SelectProducts = () => {
                     : 'bg-white text-gray-700 hover:bg-gray-50'
                 }`}
               >
-                <TableCellsIcon className="h-3 w-3" />
+                <TableCellsIcon className="h-4 w-4" />
               </button>
             </div>
           </div>
@@ -632,7 +623,7 @@ const SelectProducts = () => {
                 {paginatedProducts.map((product) => (
                   <div
                     key={product._id}
-                    className="bg-white border border-gray-200 rounded-lg hover:shadow-md transition-shadow duration-200"
+                    className="bg-white border border-gray-200 rounded-lg -md transition-shadow duration-200"
                   >
                     {/* Product Image */}
                     <div className="aspect-w-1 aspect-h-1 w-full overflow-hidden rounded-t-lg bg-gray-50">

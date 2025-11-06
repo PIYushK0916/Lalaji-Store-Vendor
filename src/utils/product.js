@@ -201,83 +201,27 @@ export const getAvailableProducts = async (params = {}) => {
   const queryString = new URLSearchParams(filteredParams).toString();
   
   try {
-    // First try the vendor-products/available endpoint
-    const vendorEndpoint = `/vendor-products/available${queryString ? `?${queryString}` : ''}`;
+    // Use the new all-with-status endpoint that returns all products with selection status
+    const vendorEndpoint = `/vendor-products/all-with-status${queryString ? `?${queryString}` : ''}`;
     console.log('Fetching from vendor endpoint:', vendorEndpoint);
     
     const vendorResponse = await apiRequest(vendorEndpoint);
     console.log('Vendor API Response:', vendorResponse);
     
     // If we got products from vendor endpoint, return them
-    if (vendorResponse?.success && vendorResponse?.data && vendorResponse.data.length > 0) {
+    if (vendorResponse?.success && vendorResponse?.data) {
       return vendorResponse;
     }
     
-    // If no products from vendor endpoint, try general products endpoint
-    console.log('No products from vendor endpoint, trying general products endpoint...');
-    const generalEndpoint = `/products${queryString ? `?${queryString}` : ''}`;
-    console.log('Fetching from general endpoint:', generalEndpoint);
+    // Fallback to the old available endpoint if the new one fails
+    console.log('Fallback to available endpoint...');
+    const fallbackEndpoint = `/vendor-products/available${queryString ? `?${queryString}` : ''}`;
+    console.log('Fetching from fallback endpoint:', fallbackEndpoint);
     
-    const generalResponse = await apiRequest(generalEndpoint);
-    console.log('General API Response:', generalResponse);
-    console.log('General response data structure:', {
-      hasData: !!generalResponse?.data,
-      dataType: typeof generalResponse?.data,
-      isArray: Array.isArray(generalResponse?.data),
-      hasProducts: !!(generalResponse?.data?.products),
-      productsType: typeof generalResponse?.data?.products,
-      productsIsArray: Array.isArray(generalResponse?.data?.products)
-    });
+    const fallbackResponse = await apiRequest(fallbackEndpoint);
+    console.log('Fallback API Response:', fallbackResponse);
     
-    if (generalResponse?.success && generalResponse?.data) {
-      // Get vendor's selected products to mark them as selected
-      let selectedProductIds = new Set();
-      let vendorProductMap = new Map(); // Map product ID to vendor product ID
-      try {
-        const selectedResponse = await apiRequest('/vendor-products/my-products?limit=1000');
-        if (selectedResponse?.data) {
-          selectedResponse.data.forEach(vp => {
-            const productId = vp.product?._id || vp.product;
-            if (productId) {
-              selectedProductIds.add(productId);
-              vendorProductMap.set(productId, vp._id); // Store vendor product ID
-            }
-          });
-        }
-        console.log('Found selected product IDs:', Array.from(selectedProductIds));
-        console.log('Vendor product mapping:', Array.from(vendorProductMap.entries()));
-      } catch (selectedError) {
-        console.warn('Could not fetch selected products:', selectedError.message);
-        // Continue without selected products info
-      }
-      
-      // Handle different response structures for general products
-      let productsArray = [];
-      if (Array.isArray(generalResponse.data)) {
-        productsArray = generalResponse.data;
-      } else if (generalResponse.data.products && Array.isArray(generalResponse.data.products)) {
-        productsArray = generalResponse.data.products;
-      } else {
-        console.log('Unexpected general response structure:', generalResponse.data);
-        productsArray = [];
-      }
-      
-      console.log('Products array length:', productsArray.length);
-      
-      // Add selection status to products
-      const productsWithStatus = productsArray.map(product => ({
-        ...product,
-        isSelectedByVendor: selectedProductIds.has(product._id),
-        vendorProductId: vendorProductMap.get(product._id) // Include vendor product ID for removal
-      }));
-      
-      return {
-        ...generalResponse,
-        data: productsWithStatus
-      };
-    }
-    
-    return vendorResponse || generalResponse;
+    return fallbackResponse;
     
   } catch (error) {
     console.error('Error in getAvailableProducts:', error);
