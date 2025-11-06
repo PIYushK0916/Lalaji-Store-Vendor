@@ -19,6 +19,7 @@ import {
   TruckIcon,
   LockClosedIcon,
   ExclamationTriangleIcon,
+  ChatBubbleLeftRightIcon,
 } from "@heroicons/react/24/outline";
 import { useState, useEffect } from "react";
 import {
@@ -42,6 +43,7 @@ import WalletPayments from "./Components/WalletPayments";
 import Analytics from "./Components/Analytics";
 import ProfileManagement from "./Components/ProfileManagement";
 import DeliveryTeamManagement from "./Components/DeliveryTeamManagement";
+import ComplaintsManagement from "./Components/ComplaintsManagement";
 import { auth } from "./utils/auth";
 
 const VendorLayout = ({ children }) => {
@@ -171,6 +173,7 @@ const VendorLayout = ({ children }) => {
         { name: "Select Products", href: "/select-products", icon: TagIcon, requiresVerification: false },
         { name: "Inventory", href: "/inventory", icon: ArchiveBoxIcon, requiresVerification: true },
         { name: "Orders", href: "/orders", icon: ShoppingBagIcon, requiresVerification: true },
+        { name: "Complaints", href: "/complaints", icon: ChatBubbleLeftRightIcon, requiresVerification: true },
         { name: "Delivery Team", href: "/delivery-team", icon: TruckIcon, requiresVerification: true },
         { name: "Payouts", href: "/wallet", icon: BanknotesIcon, requiresVerification: true },
         { name: "Analytics", href: "/analytics", icon: ChartBarIcon, requiresVerification: true },
@@ -580,6 +583,14 @@ function App() {
             element={
               <ProtectedRoute>
                 <OrderManagement />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/complaints"
+            element={
+              <ProtectedRoute>
+                <ComplaintsManagement />
               </ProtectedRoute>
             }
           />
