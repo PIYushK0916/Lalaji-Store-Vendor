@@ -17,6 +17,8 @@ import {
   ArchiveBoxIcon,
   UserIcon,
   TruckIcon,
+  LockClosedIcon,
+  ExclamationTriangleIcon,
 } from "@heroicons/react/24/outline";
 import { useState, useEffect } from "react";
 import {
@@ -48,6 +50,8 @@ const VendorLayout = ({ children }) => {
   const [user, setUser] = useState(null);
   const [deliveryModel, setDeliveryModel] = useState('lalaji_network');
   const [isTogglingDelivery, setIsTogglingDelivery] = useState(false);
+  const [isVerified, setIsVerified] = useState(false);
+  const [verificationStatus, setVerificationStatus] = useState('pending');
   const location = useLocation();
 
   useEffect(() => {
@@ -56,6 +60,12 @@ const VendorLayout = ({ children }) => {
       const userData = auth.getUser();
       if (userData) {
         setUser(userData);
+        // Check verification status
+        const verified = userData.vendorInfo?.isVerified || false;
+        const status = userData.vendorInfo?.verificationStatus || 'pending';
+        setIsVerified(verified);
+        setVerificationStatus(status);
+        
         // Set delivery model from user data
         if (userData.vendorInfo?.deliveryModel) {
           setDeliveryModel(userData.vendorInfo.deliveryModel);
@@ -67,6 +77,13 @@ const VendorLayout = ({ children }) => {
           try {
             const parsedUser = JSON.parse(storedUser);
             setUser(parsedUser);
+            
+            // Check verification status
+            const verified = parsedUser.vendorInfo?.isVerified || false;
+            const status = parsedUser.vendorInfo?.verificationStatus || 'pending';
+            setIsVerified(verified);
+            setVerificationStatus(status);
+            
             // Set delivery model from stored user data
             if (parsedUser.vendorInfo?.deliveryModel) {
               setDeliveryModel(parsedUser.vendorInfo.deliveryModel);
@@ -149,15 +166,15 @@ const VendorLayout = ({ children }) => {
     {
       section: "GENERAL",
       items: [
-        { name: "Dashboard", href: "/dashboard", icon: HomeIcon },
-        { name: "Products", href: "/products", icon: CubeIcon },
-        { name: "Select Products", href: "/select-products", icon: TagIcon },
-        { name: "Inventory", href: "/inventory", icon: ArchiveBoxIcon },
-        { name: "Orders", href: "/orders", icon: ShoppingBagIcon },
-        { name: "Delivery Team", href: "/delivery-team", icon: TruckIcon },
-        { name: "Payouts", href: "/wallet", icon: BanknotesIcon },
-        { name: "Analytics", href: "/analytics", icon: ChartBarIcon },
-        { name: "Profile", href: "/profile", icon: UserIcon },
+        { name: "Dashboard", href: "/dashboard", icon: HomeIcon, requiresVerification: false },
+        { name: "Products", href: "/products", icon: CubeIcon, requiresVerification: true },
+        { name: "Select Products", href: "/select-products", icon: TagIcon, requiresVerification: false },
+        { name: "Inventory", href: "/inventory", icon: ArchiveBoxIcon, requiresVerification: true },
+        { name: "Orders", href: "/orders", icon: ShoppingBagIcon, requiresVerification: true },
+        { name: "Delivery Team", href: "/delivery-team", icon: TruckIcon, requiresVerification: true },
+        { name: "Payouts", href: "/wallet", icon: BanknotesIcon, requiresVerification: true },
+        { name: "Analytics", href: "/analytics", icon: ChartBarIcon, requiresVerification: true },
+        { name: "Profile", href: "/profile", icon: UserIcon, requiresVerification: false },
       ]
     }
   ];
@@ -184,6 +201,8 @@ const VendorLayout = ({ children }) => {
               deliveryModel={deliveryModel}
               onToggleDelivery={handleToggleDelivery}
               isTogglingDelivery={isTogglingDelivery}
+              isVerified={isVerified}
+              verificationStatus={verificationStatus}
             />
           </div>
         </div>
@@ -203,6 +222,8 @@ const VendorLayout = ({ children }) => {
           deliveryModel={deliveryModel}
           onToggleDelivery={handleToggleDelivery}
           isTogglingDelivery={isTogglingDelivery}
+          isVerified={isVerified}
+          verificationStatus={verificationStatus}
         />
       </div>
 
@@ -264,7 +285,20 @@ const VendorLayout = ({ children }) => {
 };
 
 // Sidebar component
-const SidebarContent = ({ navigation, onClose, isActive, handleLogout, collapsed, onToggleCollapse, isMobile, deliveryModel, onToggleDelivery, isTogglingDelivery }) => {
+const SidebarContent = ({ navigation, onClose, isActive, handleLogout, collapsed, onToggleCollapse, isMobile, deliveryModel, onToggleDelivery, isTogglingDelivery, isVerified = false, verificationStatus = 'pending' }) => {
+  
+  const handleNavigationClick = (item, e) => {
+    if (item.requiresVerification && !isVerified) {
+      e.preventDefault();
+      alert(`Verification Required\n\nTo access ${item.name}, please complete your vendor verification process. You can start by selecting products to prepare your inventory.`);
+      return false;
+    }
+    
+    if (isMobile && onClose) {
+      onClose();
+    }
+    return true;
+  };
   return (
     <div className="flex h-full flex-col bg-white overflow-hidden">
       {/* Sidebar Header */}
@@ -275,9 +309,11 @@ const SidebarContent = ({ navigation, onClose, isActive, handleLogout, collapsed
               <div className="h-8 w-8 rounded-lg bg-blue-600 flex items-center justify-center">
                 <BuildingStorefrontIcon className="h-4 w-4 text-white" />
               </div>
-              <div>
+              <div className="flex-1">
                 <span className="text-base font-medium text-gray-900 font-['Gilroy']">Lalaji</span>
-                <p className="text-xs text-gray-500 font-['Gilroy'] -mt-0.5">Vendor Portal</p>
+                <div className="flex items-center gap-1">
+                  <p className="text-xs text-gray-500 font-['Gilroy'] -mt-0.5">Vendor Portal</p>
+                </div>
               </div>
             </div>
             {!isMobile && (
@@ -292,14 +328,19 @@ const SidebarContent = ({ navigation, onClose, isActive, handleLogout, collapsed
           </>
         )}
         {collapsed && !isMobile && (
-          <div className="flex items-center justify-center w-full h-full">
+          <div className="flex items-center justify-center w-full h-full relative">
             <button
               type="button"
-              className="p-2 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all"
+              className="p-2 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all relative"
               onClick={onToggleCollapse}
-              title="Expand sidebar"
+              title={`Expand sidebar${!isVerified ? ' • Account Unverified' : ''}`}
             >
               <Bars3Icon className="h-5 w-5" />
+              {!isVerified && (
+                <div className="absolute -top-0.5 -right-0.5">
+                  <ExclamationTriangleIcon className="h-3 w-3 text-amber-500" />
+                </div>
+              )}
             </button>
           </div>
         )}
@@ -309,9 +350,11 @@ const SidebarContent = ({ navigation, onClose, isActive, handleLogout, collapsed
               <div className="h-8 w-8 rounded-lg bg-blue-600 flex items-center justify-center">
                 <BuildingStorefrontIcon className="h-4 w-4 text-white" />
               </div>
-              <div>
+              <div className="flex-1">
                 <span className="text-base font-medium text-gray-900 font-['Gilroy']">Lalaji</span>
-                <p className="text-xs text-gray-500 font-['Gilroy'] -mt-0.5">Vendor Portal</p>
+                <div className="flex items-center gap-1">
+                  <p className="text-xs text-gray-500 font-['Gilroy'] -mt-0.5">Vendor Portal</p>
+                </div>
               </div>
             </div>
             <button
@@ -335,29 +378,50 @@ const SidebarContent = ({ navigation, onClose, isActive, handleLogout, collapsed
                 </div>
               )}
               <ul role="list" className="space-y-0.5">
-                {section.items.map((item) => (
-                  <li key={item.name}>
-                    <Link
-                      to={item.href}
-                      onClick={isMobile ? onClose : undefined}
-                      className={`group flex items-center gap-x-2 rounded-lg p-2 text-sm font-medium transition-all duration-200 font-['Gilroy'] relative ${
-                        isActive(item.href)
-                          ? 'bg-blue-600 text-white'
-                          : 'text-gray-700 hover:text-blue-600 hover:bg-gray-50'
-                      } ${collapsed ? 'justify-center' : ''}`}
-                      title={collapsed ? item.name : undefined}
-                    >
-                      <item.icon
-                        className={`h-5 w-5 shrink-0 transition-colors duration-200 ${
-                          isActive(item.href) ? 'text-white' : 'text-gray-500 group-hover:text-blue-600'
-                        }`}
-                      />
-                      {!collapsed && (
-                        <span className="truncate">{item.name}</span>
-                      )}
-                    </Link>
-                  </li>
-                ))}
+                {section.items.map((item) => {
+                  const isLocked = item.requiresVerification && !isVerified;
+                  const itemActive = isActive(item.href);
+                  
+                  return (
+                    <li key={item.name}>
+                      <Link
+                        to={isLocked ? '#' : item.href}
+                        onClick={(e) => handleNavigationClick(item, e)}
+                        className={`group flex items-center gap-x-2 rounded-lg p-2 text-sm font-medium transition-all duration-200 font-['Gilroy'] relative ${
+                          itemActive && !isLocked
+                            ? 'bg-blue-600 text-white'
+                            : isLocked
+                            ? 'text-gray-400 cursor-not-allowed opacity-60'
+                            : 'text-gray-700 hover:text-blue-600 hover:bg-gray-50'
+                        } ${collapsed ? 'justify-center' : ''}`}
+                        title={collapsed ? (isLocked ? `${item.name} (Verification Required)` : item.name) : undefined}
+                      >
+                        <div className="relative">
+                          <item.icon
+                            className={`h-5 w-5 shrink-0 transition-colors duration-200 ${
+                              itemActive && !isLocked 
+                                ? 'text-white' 
+                                : isLocked
+                                ? 'text-gray-400'
+                                : 'text-gray-500 group-hover:text-blue-600'
+                            }`}
+                          />
+                          {isLocked && (
+                            <LockClosedIcon className="absolute -top-0.5 -right-0.5 h-3 w-3 text-gray-400" />
+                          )}
+                        </div>
+                        {!collapsed && (
+                          <div className="flex items-center justify-between flex-1">
+                            <span className="truncate">{item.name}</span>
+                            {isLocked && (
+                              <ExclamationTriangleIcon className="h-3 w-3 text-amber-500 ml-1" />
+                            )}
+                          </div>
+                        )}
+                      </Link>
+                    </li>
+                  );
+                })}
               </ul>
             </li>
           ))}
