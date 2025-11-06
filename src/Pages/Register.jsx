@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef, useCallback } from 'react';
 import { Link, Navigate } from 'react-router-dom';
 import { 
   EyeIcon, 
@@ -6,8 +6,17 @@ import {
   BuildingStorefrontIcon,
   CheckCircleIcon,
   XMarkIcon,
-  CloudArrowUpIcon
+  CloudArrowUpIcon,
+  ChevronLeftIcon,
+  ChevronRightIcon,
+  DocumentIcon,
+  PhotoIcon,
+  MapPinIcon
 } from '@heroicons/react/24/outline';
+import { MapContainer, TileLayer, Marker, useMapEvents } from 'react-leaflet';
+import 'leaflet/dist/leaflet.css';
+import '../components/MapStyles.css';
+import L from 'leaflet';
 import { auth } from '../utils/auth';
 
 const Register = () => {
@@ -32,6 +41,8 @@ const Register = () => {
     city: '',
     state: '',
     pincode: '',
+    latitude: '',
+    longitude: '',
     
     // Legal Information
     gstNumber: '',
@@ -61,6 +72,16 @@ const Register = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
+  const [mapPosition, setMapPosition] = useState([20.5937, 78.9629]); // Default to India center
+  const [selectedLocation, setSelectedLocation] = useState(null);
+
+  // Fix for Leaflet default markers
+  delete L.Icon.Default.prototype._getIconUrl;
+  L.Icon.Default.mergeOptions({
+    iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png',
+    iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png',
+    shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
+  });
 
   const steps = [
     { id: 1, title: 'Personal Details', description: 'Basic account information' },
@@ -109,6 +130,75 @@ const Register = () => {
     }
   };
 
+  // Map-related functions
+  const LocationMarker = () => {
+    useMapEvents({
+      click(e) {
+        const { lat, lng } = e.latlng;
+        setSelectedLocation([lat, lng]);
+        setFormData(prev => ({
+          ...prev,
+          latitude: lat.toString(),
+          longitude: lng.toString()
+        }));
+        
+        // Reverse geocoding to get address details
+        reverseGeocode(lat, lng);
+      },
+    });
+
+    return selectedLocation === null ? null : (
+      <Marker position={selectedLocation} />
+    );
+  };
+
+  const reverseGeocode = async (lat, lng) => {
+    try {
+      const response = await fetch(
+        `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=18&addressdetails=1`
+      );
+      const data = await response.json();
+      
+      if (data.address) {
+        const address = data.address;
+        setFormData(prev => ({
+          ...prev,
+          address: data.display_name || '',
+          city: address.city || address.town || address.village || '',
+          state: address.state || '',
+          pincode: address.postcode || ''
+        }));
+      }
+    } catch (error) {
+      console.error('Reverse geocoding failed:', error);
+    }
+  };
+
+  const getCurrentLocation = () => {
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const { latitude, longitude } = position.coords;
+          const newPosition = [latitude, longitude];
+          setMapPosition(newPosition);
+          setSelectedLocation(newPosition);
+          setFormData(prev => ({
+            ...prev,
+            latitude: latitude.toString(),
+            longitude: longitude.toString()
+          }));
+          reverseGeocode(latitude, longitude);
+        },
+        (error) => {
+          console.error('Error getting location:', error);
+          setError('Could not get your current location. Please select manually on the map.');
+        }
+      );
+    } else {
+      setError('Geolocation is not supported by this browser.');
+    }
+  };
+
   const validateStep = (step) => {
     switch (step) {
       case 1:
@@ -138,6 +228,10 @@ const Register = () => {
         }
         if (!/^\d{6}$/.test(formData.pincode)) {
           setError('Please enter a valid 6-digit pincode');
+          return false;
+        }
+        if (!formData.latitude || !formData.longitude) {
+          setError('Please select your store location on the map');
           return false;
         }
         break;
@@ -207,7 +301,11 @@ const Register = () => {
           address: formData.address,
           city: formData.city,
           state: formData.state,
-          pincode: formData.pincode
+          pincode: formData.pincode,
+          coordinates: {
+            latitude: parseFloat(formData.latitude),
+            longitude: parseFloat(formData.longitude)
+          }
         },
         bankDetails: {
           accountNumber: formData.accountNumber,
@@ -282,9 +380,9 @@ const Register = () => {
     switch (currentStep) {
       case 1:
         return (
-          <div className="space-y-6">
-            <div>
-              <label htmlFor="name" className="block text-sm font-medium text-gray-700">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="md:col-span-2">
+              <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">
                 Full Name *
               </label>
               <input
@@ -294,13 +392,13 @@ const Register = () => {
                 required
                 value={formData.name}
                 onChange={handleChange}
-                className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 placeholder="Enter your full name"
               />
             </div>
 
             <div>
-              <label htmlFor="email" className="block text-sm font-medium text-gray-700">
+              <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
                 Email Address
               </label>
               <input
@@ -309,13 +407,13 @@ const Register = () => {
                 type="email"
                 value={formData.email}
                 onChange={handleChange}
-                className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                placeholder="Enter your email address"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                placeholder="your@email.com"
               />
             </div>
 
             <div>
-              <label htmlFor="phoneNumber" className="block text-sm font-medium text-gray-700">
+              <label htmlFor="phoneNumber" className="block text-sm font-medium text-gray-700 mb-1">
                 Phone Number *
               </label>
               <input
@@ -325,16 +423,16 @@ const Register = () => {
                 required
                 value={formData.phoneNumber}
                 onChange={handleChange}
-                className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 placeholder="+91xxxxxxxxxx"
               />
             </div>
 
             <div>
-              <label htmlFor="password" className="block text-sm font-medium text-gray-700">
+              <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">
                 Password *
               </label>
-              <div className="mt-1 relative">
+              <div className="relative">
                 <input
                   id="password"
                   name="password"
@@ -342,8 +440,8 @@ const Register = () => {
                   required
                   value={formData.password}
                   onChange={handleChange}
-                  className="block w-full border border-gray-300 rounded-md px-3 py-2 pr-10 placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                  placeholder="Create a password"
+                  className="w-full px-3 py-2 pr-10 border border-gray-300 rounded-lg text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  placeholder="Create password"
                 />
                 <button
                   type="button"
@@ -351,19 +449,19 @@ const Register = () => {
                   onClick={() => setShowPassword(!showPassword)}
                 >
                   {showPassword ? (
-                    <EyeSlashIcon className="h-5 w-5 text-gray-400" />
+                    <EyeSlashIcon className="h-4 w-4 text-gray-400" />
                   ) : (
-                    <EyeIcon className="h-5 w-5 text-gray-400" />
+                    <EyeIcon className="h-4 w-4 text-gray-400" />
                   )}
                 </button>
               </div>
             </div>
 
             <div>
-              <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700">
+              <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700 mb-1">
                 Confirm Password *
               </label>
-              <div className="mt-1 relative">
+              <div className="relative">
                 <input
                   id="confirmPassword"
                   name="confirmPassword"
@@ -371,8 +469,8 @@ const Register = () => {
                   required
                   value={formData.confirmPassword}
                   onChange={handleChange}
-                  className="block w-full border border-gray-300 rounded-md px-3 py-2 pr-10 placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                  placeholder="Confirm your password"
+                  className="w-full px-3 py-2 pr-10 border border-gray-300 rounded-lg text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  placeholder="Confirm password"
                 />
                 <button
                   type="button"
@@ -380,9 +478,9 @@ const Register = () => {
                   onClick={() => setShowConfirmPassword(!showConfirmPassword)}
                 >
                   {showConfirmPassword ? (
-                    <EyeSlashIcon className="h-5 w-5 text-gray-400" />
+                    <EyeSlashIcon className="h-4 w-4 text-gray-400" />
                   ) : (
-                    <EyeIcon className="h-5 w-5 text-gray-400" />
+                    <EyeIcon className="h-4 w-4 text-gray-400" />
                   )}
                 </button>
               </div>
@@ -392,9 +490,9 @@ const Register = () => {
 
       case 2:
         return (
-          <div className="space-y-6">
-            <div>
-              <label htmlFor="businessName" className="block text-sm font-medium text-gray-700">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="md:col-span-2">
+              <label htmlFor="businessName" className="block text-sm font-medium text-gray-700 mb-1">
                 Business Name *
               </label>
               <input
@@ -404,13 +502,13 @@ const Register = () => {
                 required
                 value={formData.businessName}
                 onChange={handleChange}
-                className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 placeholder="Enter your business name"
               />
             </div>
 
             <div>
-              <label htmlFor="businessOwnerName" className="block text-sm font-medium text-gray-700">
+              <label htmlFor="businessOwnerName" className="block text-sm font-medium text-gray-700 mb-1">
                 Business Owner Name *
               </label>
               <input
@@ -420,13 +518,13 @@ const Register = () => {
                 required
                 value={formData.businessOwnerName}
                 onChange={handleChange}
-                className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                placeholder="Enter business owner name"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                placeholder="Owner full name"
               />
             </div>
 
             <div>
-              <label htmlFor="contactPersonName" className="block text-sm font-medium text-gray-700">
+              <label htmlFor="contactPersonName" className="block text-sm font-medium text-gray-700 mb-1">
                 Contact Person Name *
               </label>
               <input
@@ -436,13 +534,13 @@ const Register = () => {
                 required
                 value={formData.contactPersonName}
                 onChange={handleChange}
-                className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                placeholder="Enter contact person name"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                placeholder="Contact person name"
               />
             </div>
 
             <div>
-              <label htmlFor="mobileNumber" className="block text-sm font-medium text-gray-700">
+              <label htmlFor="mobileNumber" className="block text-sm font-medium text-gray-700 mb-1">
                 Business Mobile Number
               </label>
               <input
@@ -451,13 +549,13 @@ const Register = () => {
                 type="tel"
                 value={formData.mobileNumber}
                 onChange={handleChange}
-                className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 placeholder="+91xxxxxxxxxx"
               />
             </div>
 
             <div>
-              <label htmlFor="alternateNumber" className="block text-sm font-medium text-gray-700">
+              <label htmlFor="alternateNumber" className="block text-sm font-medium text-gray-700 mb-1">
                 Alternate Number
               </label>
               <input
@@ -466,7 +564,7 @@ const Register = () => {
                 type="tel"
                 value={formData.alternateNumber}
                 onChange={handleChange}
-                className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 placeholder="+91xxxxxxxxxx"
               />
             </div>
@@ -475,26 +573,26 @@ const Register = () => {
 
       case 3:
         return (
-          <div className="space-y-6">
-            <div>
-              <label htmlFor="address" className="block text-sm font-medium text-gray-700">
-                Business Address *
-              </label>
-              <textarea
-                id="address"
-                name="address"
-                rows={3}
-                required
-                value={formData.address}
-                onChange={handleChange}
-                className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                placeholder="Enter complete business address"
-              />
-            </div>
+          <div className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="md:col-span-2">
+                <label htmlFor="address" className="block text-sm font-medium text-gray-700 mb-1">
+                  Business Address *
+                </label>
+                <textarea
+                  id="address"
+                  name="address"
+                  rows={2}
+                  required
+                  value={formData.address}
+                  onChange={handleChange}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none"
+                  placeholder="Enter complete business address"
+                />
+              </div>
 
-            <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
               <div>
-                <label htmlFor="city" className="block text-sm font-medium text-gray-700">
+                <label htmlFor="city" className="block text-sm font-medium text-gray-700 mb-1">
                   City *
                 </label>
                 <input
@@ -504,13 +602,13 @@ const Register = () => {
                   required
                   value={formData.city}
                   onChange={handleChange}
-                  className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                  placeholder="City name"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  placeholder="City"
                 />
               </div>
 
               <div>
-                <label htmlFor="state" className="block text-sm font-medium text-gray-700">
+                <label htmlFor="state" className="block text-sm font-medium text-gray-700 mb-1">
                   State *
                 </label>
                 <input
@@ -520,62 +618,152 @@ const Register = () => {
                   required
                   value={formData.state}
                   onChange={handleChange}
-                  className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                  placeholder="State name"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  placeholder="State"
+                />
+              </div>
+
+              <div>
+                <label htmlFor="pincode" className="block text-sm font-medium text-gray-700 mb-1">
+                  Pincode *
+                </label>
+                <input
+                  id="pincode"
+                  name="pincode"
+                  type="text"
+                  required
+                  maxLength={6}
+                  value={formData.pincode}
+                  onChange={handleChange}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  placeholder="6-digit pincode"
                 />
               </div>
             </div>
 
-            <div>
-              <label htmlFor="pincode" className="block text-sm font-medium text-gray-700">
-                Pincode *
-              </label>
-              <input
-                id="pincode"
-                name="pincode"
-                type="text"
-                required
-                maxLength={6}
-                value={formData.pincode}
-                onChange={handleChange}
-                className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                placeholder="6-digit pincode"
-              />
+            {/* Map Section */}
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <label className="block text-sm font-medium text-gray-700">
+                  Select Store Location on Map *
+                </label>
+                <button
+                  type="button"
+                  onClick={getCurrentLocation}
+                  className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors border border-blue-200"
+                >
+                  <MapPinIcon className="h-4 w-4" />
+                  Use Current Location
+                </button>
+              </div>
+              
+              <div className="border border-gray-300 rounded-lg overflow-hidden shadow-sm">
+                <div className="h-80 w-full relative">
+                  <MapContainer
+                    center={mapPosition}
+                    zoom={13}
+                    style={{ height: '100%', width: '100%' }}
+                    key={mapPosition.join(',')} // Force re-render when position changes
+                  >
+                    <TileLayer
+                      attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                      url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                    />
+                    <LocationMarker />
+                  </MapContainer>
+                </div>
+              </div>
+              
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                <p className="text-sm text-blue-700 flex items-start gap-2">
+                  <MapPinIcon className="h-4 w-4 text-blue-600 mt-0.5 shrink-0" />
+                  Click on the map to select your store location. The address fields will be automatically filled based on your selection.
+                </p>
+              </div>
+              
+              {selectedLocation && (
+                <div className="bg-green-50 border border-green-200 rounded-lg p-3">
+                  <div className="flex items-center gap-2">
+                    <div className="h-2 w-2 bg-green-500 rounded-full"></div>
+                    <span className="text-sm font-medium text-green-800">
+                      Location Selected
+                    </span>
+                  </div>
+                  <p className="text-xs text-green-600 mt-1 ml-4">
+                    Coordinates: {selectedLocation[0].toFixed(6)}, {selectedLocation[1].toFixed(6)}
+                  </p>
+                </div>
+              )}
             </div>
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-3">
                 Delivery Model *
               </label>
-              <div className="space-y-4">
-                <div className="flex items-center">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <label className="relative flex cursor-pointer rounded-lg border-zinc-200 border p-4 focus:outline-none hover:bg-gray-50">
                   <input
-                    id="lalaji_network"
-                    name="deliveryModel"
                     type="radio"
+                    name="deliveryModel"
                     value="lalaji_network"
                     checked={formData.deliveryModel === 'lalaji_network'}
                     onChange={handleChange}
-                    className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
+                    className="sr-only"
                   />
-                  <label htmlFor="lalaji_network" className="ml-3 block text-sm font-medium text-gray-700">
-                    Lalaji Network Delivery
-                  </label>
-                </div>
-                <div className="flex items-center">
+                  <div className="flex flex-1">
+                    <div className="flex flex-col">
+                      <div className="flex items-center">
+                        <div className={`h-4 w-4 rounded-full border-2 flex items-center justify-center ${
+                          formData.deliveryModel === 'lalaji_network' 
+                            ? 'border-blue-600 bg-blue-600' 
+                            : 'border-gray-300'
+                        }`}>
+                          {formData.deliveryModel === 'lalaji_network' && (
+                            <div className="h-2 w-2 rounded-full bg-white"></div>
+                          )}
+                        </div>
+                        <span className="ml-3 text-sm font-medium text-gray-900">
+                          Lalaji Network Delivery
+                        </span>
+                      </div>
+                      <p className="mt-1 text-xs text-gray-500">
+                        Use our delivery network
+                      </p>
+                    </div>
+                  </div>
+                </label>
+
+                <label className="relative flex cursor-pointer rounded-lg border border-zinc-200 p-4 focus:outline-none hover:bg-gray-50">
                   <input
-                    id="self_delivery"
-                    name="deliveryModel"
                     type="radio"
+                    name="deliveryModel"
                     value="self_delivery"
                     checked={formData.deliveryModel === 'self_delivery'}
                     onChange={handleChange}
-                    className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
+                    className="sr-only"
                   />
-                  <label htmlFor="self_delivery" className="ml-3 block text-sm font-medium text-gray-700">
-                    Self Delivery
-                  </label>
-                </div>
+                  <div className="flex flex-1">
+                    <div className="flex flex-col">
+                      <div className="flex items-center">
+                        <div className={`h-4 w-4 rounded-full border-2 flex items-center justify-center ${
+                          formData.deliveryModel === 'self_delivery' 
+                            ? 'border-blue-600 bg-blue-600' 
+                            : 'border-gray-300'
+                        }`}>
+                          {formData.deliveryModel === 'self_delivery' && (
+                            <div className="h-2 w-2 rounded-full bg-white"></div>
+                          )}
+                        </div>
+                        <span className="ml-3 text-sm font-medium text-gray-900">
+                          Self Delivery
+                        </span>
+                      </div>
+                      <p className="mt-1 text-xs text-gray-500">
+                        Handle your own deliveries
+                      </p>
+                    </div>
+                  </div>
+                </label>
               </div>
             </div>
           </div>
@@ -583,91 +771,44 @@ const Register = () => {
 
       case 4:
         return (
-          <div className="space-y-6">
-            <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
+          <div className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label htmlFor="gstNumber" className="block text-sm font-medium text-gray-700">
+                <label htmlFor="panNumber" className="block text-sm font-medium text-gray-700 mb-1">
+                  PAN Number *
+                </label>
+                <input
+                  id="panNumber"
+                  name="panNumber"
+                  type="text"
+                  required
+                  maxLength={10}
+                  value={formData.panNumber}
+                  onChange={handleChange}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 uppercase"
+                  placeholder="ABCDE1234F"
+                />
+              </div>
+
+              <div>
+                <label htmlFor="gstNumber" className="block text-sm font-medium text-gray-700 mb-1">
                   GST Number
                 </label>
                 <input
                   id="gstNumber"
                   name="gstNumber"
                   type="text"
+                  maxLength={15}
                   value={formData.gstNumber}
                   onChange={handleChange}
-                  className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                  placeholder="Enter GST number"
-                />
-              </div>
-
-              <div>
-                <label htmlFor="panNumber" className="block text-sm font-medium text-gray-700">
-                  PAN Number
-                </label>
-                <input
-                  id="panNumber"
-                  name="panNumber"
-                  type="text"
-                  value={formData.panNumber}
-                  onChange={handleChange}
-                  className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                  placeholder="Enter PAN number"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 uppercase"
+                  placeholder="22AAAAA0000A1Z5 (Optional)"
                 />
               </div>
             </div>
 
             <div>
-              <label htmlFor="accountNumber" className="block text-sm font-medium text-gray-700">
-                Bank Account Number *
-              </label>
-              <input
-                id="accountNumber"
-                name="accountNumber"
-                type="text"
-                required
-                value={formData.accountNumber}
-                onChange={handleChange}
-                className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                placeholder="Enter account number"
-              />
-            </div>
-
-            <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
-              <div>
-                <label htmlFor="ifsc" className="block text-sm font-medium text-gray-700">
-                  IFSC Code *
-                </label>
-                <input
-                  id="ifsc"
-                  name="ifsc"
-                  type="text"
-                  required
-                  value={formData.ifsc}
-                  onChange={handleChange}
-                  className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                  placeholder="Enter IFSC code"
-                />
-              </div>
-
-              <div>
-                <label htmlFor="bankName" className="block text-sm font-medium text-gray-700">
-                  Bank Name *
-                </label>
-                <input
-                  id="bankName"
-                  name="bankName"
-                  type="text"
-                  required
-                  value={formData.bankName}
-                  onChange={handleChange}
-                  className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                  placeholder="Enter bank name"
-                />
-              </div>
-            </div>
-
-            <div>
-              <label htmlFor="accountHolderName" className="block text-sm font-medium text-gray-700">
+              <label htmlFor="accountHolderName" className="block text-sm font-medium text-gray-700 mb-1">
                 Account Holder Name *
               </label>
               <input
@@ -677,13 +818,64 @@ const Register = () => {
                 required
                 value={formData.accountHolderName}
                 onChange={handleChange}
-                className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                placeholder="Enter account holder name"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                placeholder="As per bank records"
+              />
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label htmlFor="accountNumber" className="block text-sm font-medium text-gray-700 mb-1">
+                  Bank Account Number *
+                </label>
+                <input
+                  id="accountNumber"
+                  name="accountNumber"
+                  type="text"
+                  required
+                  value={formData.accountNumber}
+                  onChange={handleChange}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  placeholder="Bank account number"
+                />
+              </div>
+
+              <div>
+                <label htmlFor="ifsc" className="block text-sm font-medium text-gray-700 mb-1">
+                  IFSC Code *
+                </label>
+                <input
+                  id="ifsc"
+                  name="ifsc"
+                  type="text"
+                  required
+                  maxLength={11}
+                  value={formData.ifsc}
+                  onChange={handleChange}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 uppercase"
+                  placeholder="SBIN0001234"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label htmlFor="bankName" className="block text-sm font-medium text-gray-700 mb-1">
+                Bank Name *
+              </label>
+              <input
+                id="bankName"
+                name="bankName"
+                type="text"
+                required
+                value={formData.bankName}
+                onChange={handleChange}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                placeholder="Bank name"
               />
             </div>
 
             <div>
-              <label htmlFor="upiId" className="block text-sm font-medium text-gray-700">
+              <label htmlFor="upiId" className="block text-sm font-medium text-gray-700 mb-1">
                 UPI ID
               </label>
               <input
@@ -692,8 +884,8 @@ const Register = () => {
                 type="text"
                 value={formData.upiId}
                 onChange={handleChange}
-                className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                placeholder="Enter UPI ID"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                placeholder="yourname@upi (Optional)"
               />
             </div>
           </div>
@@ -701,89 +893,89 @@ const Register = () => {
 
       case 5:
         return (
-          <div className="space-y-6">
+          <div className="space-y-4">
             {/* Document Upload Fields */}
-            {[
-              { key: 'gstDocument', label: 'GST Certificate', required: true },
-              { key: 'panDocument', label: 'PAN Card', required: true },
-              { key: 'aadharDocument', label: 'Aadhar Card', required: true },
-              { key: 'licenseDocument', label: 'Business License', required: false }
-            ].map(doc => (
-              <div key={doc.key}>
-                <label className="block text-sm font-medium text-gray-700">
-                  {doc.label} {doc.required && '*'}
-                </label>
-                <div className="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-md">
-                  <div className="space-y-1 text-center">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {[
+                { key: 'panDocument', label: 'PAN Card', required: true },
+                { key: 'aadharDocument', label: 'Aadhar Card', required: true },
+                { key: 'gstDocument', label: 'GST Certificate', required: false },
+                { key: 'licenseDocument', label: 'Business License', required: false }
+              ].map(doc => (
+                <div key={doc.key} className="border border-gray-200 rounded-lg p-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    {doc.label} {doc.required && '*'}
+                  </label>
+                  <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center hover:border-blue-400 transition-colors">
                     {files[doc.key] ? (
                       <div className="flex items-center justify-between">
-                        <span className="text-sm text-gray-900">{files[doc.key].name}</span>
+                        <div className="flex items-center space-x-2">
+                          <DocumentIcon className="h-5 w-5 text-blue-500" />
+                          <span className="text-sm text-gray-900 truncate">{files[doc.key].name}</span>
+                        </div>
                         <button
                           type="button"
                           onClick={() => removeFile(doc.key)}
-                          className="ml-2 text-red-500 hover:text-red-700"
+                          className="text-red-500 hover:text-red-700"
                         >
-                          <XMarkIcon className="h-5 w-5" />
+                          <XMarkIcon className="h-4 w-4" />
                         </button>
                       </div>
                     ) : (
                       <>
-                        <CloudArrowUpIcon className="mx-auto h-12 w-12 text-gray-400" />
-                        <div className="flex text-sm text-gray-600">
-                          <label
-                            htmlFor={doc.key}
-                            className="relative cursor-pointer bg-white rounded-md font-medium text-blue-600 hover:text-blue-500 focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-blue-500"
-                          >
-                            <span>Upload {doc.label}</span>
-                            <input
-                              id={doc.key}
-                              type="file"
-                              accept=".pdf,.jpg,.jpeg,.png"
-                              onChange={(e) => handleFileChange(e, doc.key)}
-                              className="sr-only"
-                            />
-                          </label>
-                        </div>
-                        <p className="text-xs text-gray-500">PNG, JPG, PDF up to 10MB</p>
+                        <CloudArrowUpIcon className="mx-auto h-8 w-8 text-gray-400 mb-2" />
+                        <label
+                          htmlFor={doc.key}
+                          className="cursor-pointer text-sm text-blue-600 hover:text-blue-500 font-medium"
+                        >
+                          Upload {doc.label}
+                          <input
+                            id={doc.key}
+                            type="file"
+                            accept=".pdf,.jpg,.jpeg,.png"
+                            onChange={(e) => handleFileChange(e, doc.key)}
+                            className="sr-only"
+                          />
+                        </label>
+                        <p className="text-xs text-gray-500 mt-1">PDF, JPG, PNG (Max 10MB)</p>
                       </>
                     )}
                   </div>
                 </div>
-              </div>
-            ))}
+              ))}
+            </div>
 
             {/* Store Images Upload */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700">
+            <div className="border border-gray-200 rounded-lg p-4">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
                 Store Images *
               </label>
-              <div className="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-md">
-                <div className="space-y-1 text-center">
-                  <CloudArrowUpIcon className="mx-auto h-12 w-12 text-gray-400" />
-                  <div className="flex text-sm text-gray-600">
-                    <label
-                      htmlFor="storeImages"
-                      className="relative cursor-pointer bg-white rounded-md font-medium text-blue-600 hover:text-blue-500 focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-blue-500"
-                    >
-                      <span>Upload store images</span>
-                      <input
-                        id="storeImages"
-                        type="file"
-                        multiple
-                        accept=".jpg,.jpeg,.png"
-                        onChange={(e) => handleFileChange(e, 'storeImages')}
-                        className="sr-only"
-                      />
-                    </label>
-                  </div>
-                  <p className="text-xs text-gray-500">PNG, JPG up to 10MB each</p>
-                </div>
+              <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-blue-400 transition-colors">
+                <CloudArrowUpIcon className="mx-auto h-10 w-10 text-gray-400 mb-3" />
+                <label
+                  htmlFor="storeImages"
+                  className="cursor-pointer text-sm text-blue-600 hover:text-blue-500 font-medium"
+                >
+                  Upload store images (Multiple files allowed)
+                  <input
+                    id="storeImages"
+                    type="file"
+                    multiple
+                    accept=".jpg,.jpeg,.png"
+                    onChange={(e) => handleFileChange(e, 'storeImages')}
+                    className="sr-only"
+                  />
+                </label>
+                <p className="text-xs text-gray-500 mt-1">JPG, PNG (Max 10MB each)</p>
               </div>
               {files.storeImages.length > 0 && (
-                <div className="mt-2 space-y-1">
+                <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-2">
                   {files.storeImages.map((file, index) => (
-                    <div key={index} className="flex items-center justify-between text-sm">
-                      <span>{file.name}</span>
+                    <div key={index} className="flex items-center justify-between bg-gray-50 rounded-lg p-2">
+                      <div className="flex items-center space-x-2">
+                        <PhotoIcon className="h-4 w-4 text-green-500" />
+                        <span className="text-sm text-gray-900 truncate">{file.name}</span>
+                      </div>
                       <button
                         type="button"
                         onClick={() => removeFile('storeImages', index)}
@@ -802,109 +994,171 @@ const Register = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
-      <div className="sm:mx-auto sm:w-full sm:max-w-md">
-        <div className="flex items-center justify-center gap-x-3 mb-8">
-          <div className="h-12 w-12 rounded-lg bg-blue-600 flex items-center justify-center">
-            <BuildingStorefrontIcon className="h-7 w-7 text-white" />
-          </div>
-          <div>
-            <h2 className="text-2xl font-bold text-gray-900">Vendor Registration</h2>
-            <p className="text-sm text-gray-600">Join the Lalaji Business Network</p>
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
+      <div className="flex min-h-screen">
+        {/* Left Panel - Branding */}
+        <div className="hidden lg:flex lg:w-2/5 bg-gradient-to-br from-blue-600 to-blue-800 p-12 text-white relative overflow-hidden">
+          <div className="absolute inset-0 bg-black/10"></div>
+          <div className="relative z-10 flex flex-col justify-center max-w-lg">
+            <div className="flex items-center gap-4 mb-8">
+              <div className="h-16 w-16 rounded-xl bg-white/20 backdrop-blur-sm flex items-center justify-center">
+                <BuildingStorefrontIcon className="h-9 w-9 text-white" />
+              </div>
+              <div>
+                <h1 className="text-3xl font-bold">Vendor Portal</h1>
+                <p className="text-blue-100">Lalaji Business Network</p>
+              </div>
+            </div>
+            
+            <h2 className="text-2xl font-bold mb-6">Join India's Fastest Growing Business Network</h2>
+            <div className="space-y-4">
+              <div className="flex items-center gap-3">
+                <div className="w-2 h-2 bg-blue-300 rounded-full"></div>
+                <span className="text-blue-100">Quick verification process</span>
+              </div>
+              <div className="flex items-center gap-3">
+                <div className="w-2 h-2 bg-blue-300 rounded-full"></div>
+                <span className="text-blue-100">Instant order management</span>
+              </div>
+              <div className="flex items-center gap-3">
+                <div className="w-2 h-2 bg-blue-300 rounded-full"></div>
+                <span className="text-blue-100">Real-time analytics dashboard</span>
+              </div>
+              <div className="flex items-center gap-3">
+                <div className="w-2 h-2 bg-blue-300 rounded-full"></div>
+                <span className="text-blue-100">Integrated payment solutions</span>
+              </div>
+            </div>
           </div>
         </div>
-      </div>
 
-      <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-2xl">
-        <div className="bg-white py-8 px-4  sm:rounded-lg sm:px-10">
-          {/* Progress Steps */}
-          <div className="mb-8">
-            <nav aria-label="Progress">
-              <ol className="flex items-center">
-                {steps.map((step, stepIdx) => (
-                  <li key={step.id} className={`${stepIdx !== steps.length - 1 ? 'pr-8 sm:pr-20' : ''} relative`}>
-                    <div className="flex items-center">
-                      <div className={`flex h-8 w-8 items-center justify-center rounded-full ${
-                        step.id < currentStep ? 'bg-blue-600' : 
-                        step.id === currentStep ? 'bg-blue-600' : 'bg-gray-300'
-                      }`}>
-                        <span className="text-white text-sm font-medium">{step.id}</span>
-                      </div>
-                      <span className="ml-4 text-sm font-medium text-gray-900 hidden sm:block">
-                        {step.title}
-                      </span>
-                    </div>
-                    {stepIdx !== steps.length - 1 && (
-                      <div className="absolute top-4 left-8 -ml-px mt-0.5 h-0.5 w-full bg-gray-300" />
-                    )}
-                  </li>
-                ))}
-              </ol>
-            </nav>
-          </div>
-
-          <form onSubmit={handleSubmit}>
-            {error && (
-              <div className="mb-6 rounded-md bg-red-50 p-4">
-                <div className="text-sm text-red-700">{error}</div>
+        {/* Right Panel - Registration Form */}
+        <div className="flex-1 flex flex-col justify-center px-4 sm:px-6 lg:px-12 xl:px-16">
+          <div className="w-full max-w-2xl mx-auto">
+            {/* Mobile Header */}
+            <div className="lg:hidden text-center mb-8">
+              <div className="flex items-center justify-center gap-3 mb-4">
+                <div className="h-12 w-12 rounded-lg bg-blue-600 flex items-center justify-center">
+                  <BuildingStorefrontIcon className="h-7 w-7 text-white" />
+                </div>
+                <div>
+                  <h2 className="text-xl font-bold text-gray-900">Vendor Registration</h2>
+                  <p className="text-sm text-gray-600">Join the Lalaji Business Network</p>
+                </div>
               </div>
-            )}
-
-            <div className="mb-8">
-              <h3 className="text-lg font-medium text-gray-900 mb-2">
-                {steps[currentStep - 1].title}
-              </h3>
-              <p className="text-sm text-gray-600">
-                {steps[currentStep - 1].description}
-              </p>
             </div>
 
-            {renderStepContent()}
+            <div className="bg-white rounded-2xl  p-6 lg:p-8">
+              {/* Compact Progress Steps */}
+              <div className="mb-6">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-semibold text-gray-900">
+                    {steps[currentStep - 1].title}
+                  </h3>
+                  <span className="text-sm text-gray-500">
+                    Step {currentStep} of {steps.length}
+                  </span>
+                </div>
+                
+                {/* Progress Bar */}
+                <div className="w-full bg-gray-200 rounded-full h-2 mb-4">
+                  <div 
+                    className="bg-blue-600 h-2 rounded-full transition-all duration-300 ease-in-out"
+                    style={{ width: `${(currentStep / steps.length) * 100}%` }}
+                  ></div>
+                </div>
 
-            <div className="flex justify-between mt-8">
-              <button
-                type="button"
-                onClick={prevStep}
-                disabled={currentStep === 1}
-                className="py-2 px-4 border border-gray-300 rounded-md  text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                Previous
-              </button>
-
-              {currentStep === 5 ? (
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="py-2 px-4 border border-transparent rounded-md  text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {loading ? (
-                    <div className="flex items-center">
-                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                      Submitting...
+                {/* Step Indicators */}
+                <div className="flex justify-between text-xs text-gray-500">
+                  {steps.map((step) => (
+                    <div 
+                      key={step.id} 
+                      className={`flex items-center ${
+                        step.id <= currentStep ? 'text-blue-600' : 'text-gray-400'
+                      }`}
+                    >
+                      <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-medium mr-2 ${
+                        step.id <= currentStep 
+                          ? 'bg-blue-600 text-white' 
+                          : 'bg-gray-200 text-gray-500'
+                      }`}>
+                        {step.id}
+                      </div>
+                      <span className="hidden sm:block">{step.title}</span>
                     </div>
-                  ) : (
-                    'Submit Registration'
-                  )}
-                </button>
-              ) : (
-                <button
-                  type="button"
-                  onClick={nextStep}
-                  className="py-2 px-4 border border-transparent rounded-md  text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-                >
-                  Next
-                </button>
-              )}
-            </div>
-          </form>
+                  ))}
+                </div>
+              </div>
 
-          <div className="mt-6 text-center">
-            <p className="text-sm text-gray-600">
-              Already have an account?{' '}
-              <Link to="/login" className="font-medium text-blue-600 hover:text-blue-500">
-                Sign in here
-              </Link>
-            </p>
+              <form onSubmit={handleSubmit}>
+                {error && (
+                  <div className="mb-6 rounded-lg bg-red-50 border border-red-200 p-4">
+                    <div className="text-sm text-red-700">{error}</div>
+                  </div>
+                )}
+
+                <div className="mb-6">
+                  <p className="text-sm text-gray-600">
+                    {steps[currentStep - 1].description}
+                  </p>
+                </div>
+
+                <div className="min-h-[400px]">
+                  {renderStepContent()}
+                </div>
+
+                {/* Navigation Buttons */}
+                <div className="flex justify-between items-center mt-8 pt-6 border-t border-gray-200">
+                  <button
+                    type="button"
+                    onClick={prevStep}
+                    disabled={currentStep === 1}
+                    className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <ChevronLeftIcon className="h-4 w-4" />
+                    Previous
+                  </button>
+
+                  {currentStep === 5 ? (
+                    <button
+                      type="submit"
+                      disabled={loading}
+                      className="flex items-center gap-2 px-6 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {loading ? (
+                        <>
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                          Submitting...
+                        </>
+                      ) : (
+                        <>
+                          <CheckCircleIcon className="h-4 w-4" />
+                          Submit Registration
+                        </>
+                      )}
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={nextStep}
+                      className="flex items-center gap-2 px-6 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                      Next
+                      <ChevronRightIcon className="h-4 w-4" />
+                    </button>
+                  )}
+                </div>
+              </form>
+
+              <div className="mt-6 text-center">
+                <p className="text-sm text-gray-600">
+                  Already have an account?{' '}
+                  <Link to="/login" className="font-medium text-blue-600 hover:text-blue-500">
+                    Sign in here
+                  </Link>
+                </p>
+              </div>
+            </div>
           </div>
         </div>
       </div>
