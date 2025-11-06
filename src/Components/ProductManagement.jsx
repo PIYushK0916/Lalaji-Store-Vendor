@@ -493,7 +493,7 @@ const ProductManagement = () => {
             setFilterStatus('all');
             setCurrentPage(1);
           }}
-          className={`bg-white rounded-lg  p-3 hover:shadow transition-all text-left ${
+          className={`bg-white rounded-lg  p-3 hover: transition-all text-left ${
             filterStatus === 'all' ? 'ring-2 ring-blue-500' : ''
           }`}
         >
@@ -514,7 +514,7 @@ const ProductManagement = () => {
             setFilterStatus('active');
             setCurrentPage(1);
           }}
-          className={`bg-white rounded-lg  p-3 hover:shadow transition-all text-left ${
+          className={`bg-white rounded-lg  p-3 hover: transition-all text-left ${
             filterStatus === 'active' ? 'ring-2 ring-green-500' : ''
           }`}
         >
@@ -535,7 +535,7 @@ const ProductManagement = () => {
             setFilterStatus('inactive');
             setCurrentPage(1);
           }}
-          className={`bg-white rounded-lg  p-3 hover:shadow transition-all text-left ${
+          className={`bg-white rounded-lg  p-3 hover: transition-all text-left ${
             filterStatus === 'inactive' ? 'ring-2 ring-yellow-500' : ''
           }`}
         >
@@ -556,7 +556,7 @@ const ProductManagement = () => {
             setFilterStatus('out_of_stock');
             setCurrentPage(1);
           }}
-          className={`bg-white rounded-lg  p-3 hover:shadow transition-all text-left ${
+          className={`bg-white rounded-lg  p-3 hover: transition-all text-left ${
             filterStatus === 'out_of_stock' ? 'ring-2 ring-red-500' : ''
           }`}
         >
@@ -818,7 +818,7 @@ const ProductManagement = () => {
               const approvalStatus = product.approvalStatus?.status || 'pending';
 
               return (
-                <div key={product._id || product.id} className="bg-white  rounded-lg overflow-hidden hover:shadow transition-shadow">
+                <div key={product._id || product.id} className="bg-white  rounded-lg overflow-hidden hover: transition-">
                   {/* Product Image */}
                   <div className="relative h-32 bg-gray-100">
                     {product.images && product.images.length > 0 ? (
