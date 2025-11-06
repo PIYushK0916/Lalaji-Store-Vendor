@@ -908,17 +908,25 @@ const Register = () => {
                   </label>
                   <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center hover:border-blue-400 transition-colors">
                     {files[doc.key] ? (
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center space-x-2">
-                          <DocumentIcon className="h-5 w-5 text-blue-500" />
-                          <span className="text-sm text-gray-900 truncate">{files[doc.key].name}</span>
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-center space-x-2">
+                          <DocumentIcon className="h-6 w-6 text-blue-500" />
+                          <span className="text-sm font-medium text-green-700">File Uploaded</span>
+                        </div>
+                        <div className="bg-gray-50 rounded-lg p-3 border border-gray-200">
+                          <p className="text-sm text-gray-900 truncate mb-1" title={files[doc.key].name}>
+                            {files[doc.key].name.length > 25 ? `${files[doc.key].name.substring(0, 25)}...` : files[doc.key].name}
+                          </p>
+                          <p className="text-xs text-gray-500">
+                            {(files[doc.key].size / (1024 * 1024)).toFixed(2)} MB
+                          </p>
                         </div>
                         <button
                           type="button"
                           onClick={() => removeFile(doc.key)}
-                          className="text-red-500 hover:text-red-700"
+                          className="text-red-500 hover:text-red-700 text-sm font-medium"
                         >
-                          <XMarkIcon className="h-4 w-4" />
+                          Remove File
                         </button>
                       </div>
                     ) : (
@@ -969,22 +977,35 @@ const Register = () => {
                 <p className="text-xs text-gray-500 mt-1">JPG, PNG (Max 10MB each)</p>
               </div>
               {files.storeImages.length > 0 && (
-                <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-2">
-                  {files.storeImages.map((file, index) => (
-                    <div key={index} className="flex items-center justify-between bg-gray-50 rounded-lg p-2">
-                      <div className="flex items-center space-x-2">
-                        <PhotoIcon className="h-4 w-4 text-green-500" />
-                        <span className="text-sm text-gray-900 truncate">{file.name}</span>
+                <div className="mt-3 space-y-2">
+                  <div className="text-xs font-medium text-gray-700 mb-2">
+                    Uploaded Files ({files.storeImages.length})
+                  </div>
+                  <div className="grid grid-cols-1 gap-2 max-h-32 overflow-y-auto">
+                    {files.storeImages.map((file, index) => (
+                      <div key={index} className="flex items-center justify-between bg-gray-50 rounded-lg p-3 border border-gray-200">
+                        <div className="flex items-center space-x-3 min-w-0 flex-1">
+                          <PhotoIcon className="h-5 w-5 text-green-500 shrink-0" />
+                          <div className="min-w-0 flex-1">
+                            <p className="text-sm text-gray-900 truncate" title={file.name}>
+                              {file.name.length > 30 ? `${file.name.substring(0, 30)}...` : file.name}
+                            </p>
+                            <p className="text-xs text-gray-500">
+                              {(file.size / (1024 * 1024)).toFixed(2)} MB
+                            </p>
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => removeFile('storeImages', index)}
+                          className="text-red-500 hover:text-red-700 p-1 shrink-0"
+                          title="Remove file"
+                        >
+                          <XMarkIcon className="h-4 w-4" />
+                        </button>
                       </div>
-                      <button
-                        type="button"
-                        onClick={() => removeFile('storeImages', index)}
-                        className="text-red-500 hover:text-red-700"
-                      >
-                        <XMarkIcon className="h-4 w-4" />
-                      </button>
-                    </div>
-                  ))}
+                    ))}
+                  </div>
                 </div>
               )}
             </div>
