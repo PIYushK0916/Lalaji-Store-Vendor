@@ -69,7 +69,7 @@ const CustomDropdown = ({
         </button>
 
         {isOpen && !disabled && (
-          <div className="absolute z-50 mt-1 w-full bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-hidden">
+          <div className="absolute z-50 mt-1 w-full bg-white border border-gray-300 rounded-lg  max-h-60 overflow-hidden">
             {options.length > 5 && (
               <div className="p-2 border-b border-gray-200">
                 <input

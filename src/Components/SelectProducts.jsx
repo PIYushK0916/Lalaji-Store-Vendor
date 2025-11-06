@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import {
   MagnifyingGlassIcon,
   FunnelIcon,
@@ -9,9 +9,14 @@ import {
   ShoppingCartIcon,
   StarIcon,
   ChevronLeftIcon,
-  ChevronRightIcon
+  ChevronRightIcon,
+  TrashIcon,
+  Squares2X2Icon,
+  TableCellsIcon,
+  EyeIcon,
+  EyeSlashIcon
 } from '@heroicons/react/24/outline';
-import { getAvailableProducts, selectProduct } from '../utils/product';
+import { getAvailableProducts, selectProduct, removeProduct } from '../utils/product';
 import { getCategories, getSubcategories } from '../utils/category';
 import { auth } from '../utils/auth';
 
@@ -65,7 +70,7 @@ const CustomDropdown = ({
         </button>
 
         {isOpen && !disabled && (
-          <div className="absolute z-50 mt-1 w-full bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-hidden">
+          <div className="absolute z-50 mt-1 w-full bg-white border border-gray-300 rounded-lg  max-h-60 overflow-hidden">
             {options.length > 5 && (
               <div className="p-2 border-b border-gray-200">
                 <input
@@ -132,6 +137,11 @@ const SelectProducts = () => {
     notes: ''
   });
   const [selectingProduct, setSelectingProduct] = useState(null);
+  const [removingProduct, setRemovingProduct] = useState(null);
+  const [showRemoveModal, setShowRemoveModal] = useState(false);
+  const [productToRemove, setProductToRemove] = useState(null);
+  const [viewMode, setViewMode] = useState('card'); // 'card' or 'table'
+  const [statusFilter, setStatusFilter] = useState('all'); // 'all', 'selected', 'available'
 
   // Dropdown options
   const categoryOptions = [
@@ -148,6 +158,12 @@ const SelectProducts = () => {
       value: subcategory._id || subcategory.id,
       label: subcategory.name
     }))
+  ];
+
+  const statusFilterOptions = [
+    { value: 'all', label: 'All Products' },
+    { value: 'selected', label: 'In My Inventory' },
+    { value: 'available', label: 'Available to Add' }
   ];
 
   // Fetch available products
@@ -168,13 +184,44 @@ const SelectProducts = () => {
       console.log('Fetching available products with params:', params);
       const response = await getAvailableProducts(params);
       console.log('Available products response:', response);
+      console.log('Response data type:', typeof response?.data);
+      console.log('Response data is array:', Array.isArray(response?.data));
+      
       if (response?.success && response?.data) {
-        setProducts(response.data);
-        setTotalPages(response.pagination?.pages || 1);
+        // Handle both possible response structures
+        let productsData = [];
+        
+        if (Array.isArray(response.data)) {
+          // Direct array in data
+          productsData = response.data;
+        } else if (response.data.products && Array.isArray(response.data.products)) {
+          // Nested products array
+          productsData = response.data.products;
+        }
+        
+        console.log('Setting products data:', productsData);
+        setProducts(productsData);
+        
+        // Update selected products set based on isSelectedByVendor flag
+        const alreadySelected = new Set(
+          productsData
+            .filter(product => product.isSelectedByVendor)
+            .map(product => product._id)
+        );
+        setSelectedProducts(alreadySelected);
+        
+        setTotalPages(response.pagination?.pages || response.data.pagination?.pages || 1);
+        
+        if (productsData.length === 0) {
+          setError('No products available at the moment. This could mean there are no approved products in the system yet.');
+        } else {
+          setError(null); // Clear any previous error
+        }
       } else {
+        console.log('No valid response, setting empty array');
         setProducts([]);
         setTotalPages(1);
-        setError('No products available at the moment');
+        setError(response?.error || 'No products available at the moment. This could mean there are no approved products in the system yet.');
       }
     } catch (err) {
       console.error('Error fetching products:', err);
@@ -244,6 +291,55 @@ const SelectProducts = () => {
     }
   };
 
+  // Open remove confirmation modal
+  const openRemoveModal = (product) => {
+    setProductToRemove(product);
+    setShowRemoveModal(true);
+  };
+
+  // Handle product removal
+  const handleRemoveProduct = async (product) => {
+    if (!product.vendorProductId) {
+      setError('Cannot remove product: vendor product ID not found');
+      return;
+    }
+
+    try {
+      setRemovingProduct(product._id);
+      setError(null);
+      setSuccess(null);
+
+      await removeProduct(product.vendorProductId);
+
+      setSuccess(`Successfully removed "${product.name}" from your inventory!`);
+      setSelectedProducts(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(product._id);
+        return newSet;
+      });
+      
+      // Update the product in the local state to reflect removal
+      setProducts(prevProducts => 
+        prevProducts.map(p => 
+          p._id === product._id 
+            ? { ...p, isSelectedByVendor: false, vendorProductId: null }
+            : p
+        )
+      );
+      
+      setShowRemoveModal(false);
+      setProductToRemove(null);
+      
+      // Auto-hide success message after 3 seconds
+      setTimeout(() => setSuccess(null), 3000);
+    } catch (err) {
+      console.error('Error removing product:', err);
+      setError(err.message || 'Failed to remove product from inventory');
+    } finally {
+      setRemovingProduct(null);
+    }
+  };
+
   // Open selection modal
   const openSelectionModal = (product) => {
     setSelectedProductForModal(product);
@@ -265,6 +361,52 @@ const SelectProducts = () => {
     fetchSubcategories(value);
   };
 
+  // Handle status filter change
+  const handleStatusFilterChange = (value) => {
+    console.log('Status filter changed to:', value);
+    setStatusFilter(value);
+    setCurrentPage(1);
+  };
+
+  // Filter products based on status
+  const filteredProducts = useMemo(() => {
+    console.log('Filtering products with statusFilter:', statusFilter);
+    console.log('Total products:', products.length);
+    console.log('Selected products:', selectedProducts.size);
+    
+    if (statusFilter === 'all') {
+      console.log('Returning all products:', products.length);
+      return products;
+    }
+    if (statusFilter === 'selected') {
+      const selected = products.filter(p => p.isSelectedByVendor || selectedProducts.has(p._id));
+      console.log('Returning selected products:', selected.length);
+      return selected;
+    }
+    if (statusFilter === 'available') {
+      const available = products.filter(p => !p.isSelectedByVendor && !selectedProducts.has(p._id));
+      console.log('Returning available products:', available.length);
+      return available;
+    }
+    console.log('Returning default products:', products.length);
+    return products;
+  }, [products, statusFilter, selectedProducts]);
+
+  // Calculate pagination
+  const paginatedProducts = useMemo(() => {
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    return filteredProducts.slice(startIndex, startIndex + itemsPerPage);
+  }, [filteredProducts, currentPage, itemsPerPage]);
+
+  const totalFilteredPages = useMemo(() => {
+    return Math.ceil(filteredProducts.length / itemsPerPage);
+  }, [filteredProducts.length, itemsPerPage]);
+
+  // Reset current page when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, filterCategory, filterSubcategory, statusFilter]);
+
   // Handle subcategory change
   const handleSubcategoryChange = (value) => {
     setFilterSubcategory(value);
@@ -284,6 +426,19 @@ const SelectProducts = () => {
     return () => clearTimeout(debounceTimer);
   }, [currentPage, searchTerm, filterCategory, filterSubcategory]);
 
+  // Format price including GST
+  const formatPriceWithGST = (product) => {
+    const basePrice = product.pricing?.basePrice || 0;
+    const gstAmount = product.pricingWithGST?.gst?.gstAmount || product.pricing?.gst?.gstAmount || 0;
+    const totalPrice = basePrice + gstAmount;
+    
+    return new Intl.NumberFormat('en-IN', {
+      style: 'currency',
+      currency: 'INR',
+      minimumFractionDigits: 0,
+    }).format(totalPrice);
+  };
+
   // Format price
   const formatPrice = (price) => {
     return new Intl.NumberFormat('en-IN', {
@@ -293,12 +448,28 @@ const SelectProducts = () => {
     }).format(price);
   };
 
-  // Get product image
+  // Get product image or check if we should show initials
   const getProductImage = (product) => {
     if (product.images && product.images.length > 0) {
-      return product.images[0];
+      // Find primary image or use first image
+      const primaryImage = product.images.find(img => img.isPrimary);
+      const imageUrl = primaryImage ? primaryImage.url : product.images[0].url;
+      if (imageUrl && imageUrl !== '/api/placeholder/300/300') {
+        return imageUrl;
+      }
     }
-    return '/api/placeholder/300/300';
+    return null; // Return null when no valid image
+  };
+
+  // Get product initials for fallback
+  const getProductInitials = (productName) => {
+    if (!productName) return 'P';
+    
+    const words = productName.trim().split(' ');
+    if (words.length === 1) {
+      return words[0].substring(0, 2).toUpperCase();
+    }
+    return words.slice(0, 2).map(word => word[0]).join('').toUpperCase();
   };
 
   if (loading && currentPage === 1) {
@@ -316,7 +487,7 @@ const SelectProducts = () => {
         <div>
           <h1 className="text-xl font-bold text-gray-900">Select Products</h1>
           <p className="mt-0.5 text-xs text-gray-500">
-            Choose from approved products on Lalaji platform to add to your inventory
+            Browse all approved products on Lalaji platform. Add new ones to your inventory.
           </p>
         </div>
       </div>
@@ -346,7 +517,7 @@ const SelectProducts = () => {
 
       {/* Filters - Compact */}
       <div className="bg-white border border-gray-200 rounded-lg p-3">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-3 items-end">
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-3 items-end">
           {/* Search */}
           <div className="md:col-span-2">
             <label htmlFor="search" className="block text-xs font-medium text-gray-700 mb-1">
@@ -360,7 +531,7 @@ const SelectProducts = () => {
                 placeholder="Search by name, brand, or description..."
                 value={searchTerm}
                 onChange={(e) => handleSearchChange(e.target.value)}
-                className="block w-full rounded-md border-gray-300 pl-10 pr-3 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                className="block w-full rounded-md border border-gray-300 pl-10 pr-3 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
               />
             </div>
           </div>
@@ -387,15 +558,51 @@ const SelectProducts = () => {
               disabled={filterCategory === 'all' || subcategories.length === 0}
             />
           </div>
+
+          {/* Status Filter */}
+          <div>
+            <CustomDropdown
+              label="Status"
+              value={statusFilter}
+              onChange={handleStatusFilterChange}
+              options={statusFilterOptions}
+              placeholder="All Products"
+            />
+          </div>
         </div>
 
-        {/* Stats */}
+        {/* Controls Row */}
         <div className="mt-3 flex items-center justify-between">
+          {/* Stats */}
           <div className="text-xs text-gray-500">
-            Showing {products.length} available products
+            Showing {filteredProducts.length} of {products.length} products ({products.filter(p => !p.isSelectedByVendor && !selectedProducts.has(p._id)).length} available to add)
           </div>
-          <div className="text-xs text-gray-500">
-            {selectedProducts.size} products added to inventory
+          
+          {/* View Mode Toggle */}
+          <div className="flex items-center space-x-2">
+            <span className="text-xs text-gray-500">View:</span>
+            <div className="flex border border-gray-300 rounded-md">
+              <button
+                onClick={() => setViewMode('card')}
+                className={`px-2 py-1 text-xs rounded-l-md transition-colors ${
+                  viewMode === 'card' 
+                    ? 'bg-blue-500 text-white' 
+                    : 'bg-white text-gray-700 hover:bg-gray-50'
+                }`}
+              >
+                <Squares2X2Icon className="h-3 w-3" />
+              </button>
+              <button
+                onClick={() => setViewMode('table')}
+                className={`px-2 py-1 text-xs rounded-r-md transition-colors ${
+                  viewMode === 'table' 
+                    ? 'bg-blue-500 text-white' 
+                    : 'bg-white text-gray-700 hover:bg-gray-50'
+                }`}
+              >
+                <TableCellsIcon className="h-3 w-3" />
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -406,113 +613,295 @@ const SelectProducts = () => {
           <div className="flex items-center justify-center h-24">
             <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
           </div>
-        ) : products.length === 0 ? (
+        ) : filteredProducts.length === 0 ? (
           <div className="text-center py-8">
             <CubeIcon className="mx-auto h-10 w-10 text-gray-400" />
             <h3 className="mt-2 text-sm font-medium text-gray-900">No products found</h3>
             <p className="mt-1 text-xs text-gray-500">
-              Try adjusting your search criteria or check back later for new products.
+              {searchTerm || filterCategory !== 'all' || filterSubcategory !== 'all' || statusFilter !== 'all'
+                ? 'Try adjusting your filters'
+                : 'No products available at the moment'
+              }
             </p>
           </div>
         ) : (
           <>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
-              {products.map((product) => (
-                <div
-                  key={product._id}
-                  className="bg-white border border-gray-200 rounded-lg hover:shadow-md transition-shadow duration-200"
-                >
-                  {/* Product Image */}
-                  <div className="aspect-w-1 aspect-h-1 w-full overflow-hidden rounded-t-lg bg-gray-50">
-                    <img
-                      src={getProductImage(product)}
-                      alt={product.name}
-                      className="h-32 w-full object-cover object-center"
-                      onError={(e) => {
-                        e.target.src = '/api/placeholder/300/300';
-                      }}
-                    />
-                  </div>
-
-                  {/* Product Info */}
-                  <div className="p-3">
-                    <div className="flex justify-between items-start mb-1">
-                      <h3 className="text-sm font-medium text-gray-900 line-clamp-2">
-                        {product.name}
-                      </h3>
-                      {selectedProducts.has(product._id) && (
-                        <CheckCircleIcon className="h-4 w-4 text-green-500 shrink-0 ml-1" />
-                      )}
+            {viewMode === 'card' ? (
+              // Card View
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+                {paginatedProducts.map((product) => (
+                  <div
+                    key={product._id}
+                    className="bg-white border border-gray-200 rounded-lg hover:shadow-md transition-shadow duration-200"
+                  >
+                    {/* Product Image */}
+                    <div className="aspect-w-1 aspect-h-1 w-full overflow-hidden rounded-t-lg bg-gray-50">
+                      {getProductImage(product) ? (
+                        <img
+                          src={getProductImage(product)}
+                          alt={product.name}
+                          className="h-32 w-full object-cover object-center"
+                          onError={(e) => {
+                            // Hide the image and show initials fallback
+                            e.target.style.display = 'none';
+                            e.target.nextElementSibling.style.display = 'flex';
+                          }}
+                        />
+                      ) : null}
+                      <div 
+                        className={`h-32 w-full flex items-center justify-center bg-zinc-100 text-black ${
+                          getProductImage(product) ? 'hidden' : 'flex'
+                        }`}
+                      >
+                        <span className="text-4xl font-bold">
+                          {getProductInitials(product.name)}
+                        </span>
+                      </div>
                     </div>
 
-                    {/* Brand */}
-                    {product.brand && (
-                      <p className="text-xs text-gray-500 mb-1">{product.brand}</p>
-                    )}
-
-                    {/* Price */}
-                    <div className="flex items-center justify-between mb-2">
-                      <div>
-                        <p className="text-sm font-semibold text-gray-900">
-                          {formatPrice(product.pricing?.basePrice || 0)}
-                        </p>
-                        {product.pricing?.discount?.percentage > 0 && (
-                          <p className="text-xs text-gray-500 line-through">
-                            {formatPrice((product.pricing.basePrice / (1 - product.pricing.discount.percentage / 100)))}
-                          </p>
+                    {/* Product Info */}
+                    <div className="p-3">
+                      <div className="flex justify-between items-start mb-1">
+                        <h3 className="text-sm font-medium text-gray-900 line-clamp-2">
+                          {product.name}
+                        </h3>
+                        {(product.isSelectedByVendor || selectedProducts.has(product._id)) && (
+                          <CheckCircleIcon className="h-4 w-4 text-green-500 shrink-0 ml-1" />
                         )}
                       </div>
-                      {product.rating && (
-                        <div className="flex items-center">
-                          <StarIcon className="h-3 w-3 text-yellow-400 fill-current" />
-                          <span className="text-xs text-gray-600 ml-1">{product.rating.toFixed(1)}</span>
+
+                      {/* Brand */}
+                      {product.brand && (
+                        <p className="text-xs text-gray-500 mb-1">{product.brand}</p>
+                      )}
+
+                      {/* Price */}
+                      <div className="flex items-center justify-between mb-2">
+                        <div>
+                          <p className="text-sm font-semibold text-gray-900">
+                            {formatPriceWithGST(product)}
+                          </p>
+                          <p className="text-xs text-gray-500">
+                            (Inc. GST)
+                          </p>
                         </div>
+                        {product.rating && (
+                          <div className="flex items-center">
+                            <StarIcon className="h-3 w-3 text-yellow-400 fill-current" />
+                            <span className="text-xs text-gray-600 ml-1">{product.rating.toFixed(1)}</span>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Category */}
+                      {product.category?.name && (
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 mb-2">
+                          {product.category.name}
+                        </span>
+                      )}
+
+                      {/* Action Button */}
+                      {(product.isSelectedByVendor || selectedProducts.has(product._id)) ? (
+                        <div className="flex gap-2">
+                          <div className="flex-1 inline-flex items-center justify-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-md bg-green-100 text-green-800">
+                            <CheckCircleIcon className="h-3 w-3 mr-1" />
+                            In Inventory
+                          </div>
+                          <button
+                            onClick={() => openRemoveModal(product)}
+                            disabled={removingProduct === product._id}
+                            className="px-3 py-1.5 border border-red-300 text-xs font-medium rounded-md text-red-700 bg-white hover:bg-red-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200"
+                            title="Remove from inventory"
+                          >
+                            {removingProduct === product._id ? (
+                              <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-red-700"></div>
+                            ) : (
+                              <TrashIcon className="h-3 w-3" />
+                            )}
+                          </button>
+                        </div>
+                      ) : (
+                        <button
+                          onClick={() => openSelectionModal(product)}
+                          disabled={selectingProduct === product._id}
+                          className={`w-full inline-flex items-center justify-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-md transition-colors duration-200 ${
+                            selectingProduct === product._id
+                              ? 'bg-gray-100 text-gray-500 cursor-not-allowed'
+                              : 'bg-blue-600 text-white hover:bg-blue-700'
+                          }`}
+                        >
+                          {selectingProduct === product._id ? (
+                            <>
+                              <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-white mr-1"></div>
+                              Adding...
+                            </>
+                          ) : (
+                            <>
+                              <ShoppingCartIcon className="h-3 w-3 mr-1" />
+                              Add to Inventory
+                            </>
+                          )}
+                        </button>
                       )}
                     </div>
-
-                    {/* Category */}
-                    {product.category?.name && (
-                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 mb-2">
-                        {product.category.name}
-                      </span>
-                    )}
-
-                    {/* Action Button */}
-                    <button
-                      onClick={() => openSelectionModal(product)}
-                      disabled={selectedProducts.has(product._id) || selectingProduct === product._id}
-                      className={`w-full inline-flex items-center justify-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-md transition-colors duration-200 ${
-                        selectedProducts.has(product._id)
-                          ? 'bg-green-100 text-green-800 cursor-not-allowed'
-                          : selectingProduct === product._id
-                          ? 'bg-gray-100 text-gray-500 cursor-not-allowed'
-                          : 'bg-blue-600 text-white hover:bg-blue-700'
-                      }`}
-                    >
-                      {selectingProduct === product._id ? (
-                        <>
-                          <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-white mr-1"></div>
-                          Adding...
-                        </>
-                      ) : selectedProducts.has(product._id) ? (
-                        <>
-                          <CheckCircleIcon className="h-3 w-3 mr-1" />
-                          Added
-                        </>
-                      ) : (
-                        <>
-                          <ShoppingCartIcon className="h-3 w-3 mr-1" />
-                          Add to Inventory
-                        </>
-                      )}
-                    </button>
                   </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            ) : (
+              // Table View
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Product
+                      </th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Category
+                      </th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Price (Inc. GST)
+                      </th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Stock
+                      </th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Status
+                      </th>
+                      <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Actions
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {paginatedProducts.map((product) => (
+                      <tr key={product._id} className="hover:bg-gray-50">
+                        {/* Product */}
+                        <td className="px-4 py-3">
+                          <div className="flex items-center">
+                            <div className="h-12 w-12 shrink-0">
+                              {getProductImage(product) ? (
+                                <img
+                                  src={getProductImage(product)}
+                                  alt={product.name}
+                                  className="h-12 w-12 rounded-lg object-cover"
+                                  onError={(e) => {
+                                    e.target.style.display = 'none';
+                                    e.target.nextElementSibling.style.display = 'flex';
+                                  }}
+                                />
+                              ) : null}
+                              <div 
+                                className={`h-12 w-12 flex items-center justify-center bg-zinc-100 text-black rounded-lg ${
+                                  getProductImage(product) ? 'hidden' : 'flex'
+                                }`}
+                              >
+                                <span className="text-lg font-bold">
+                                  {getProductInitials(product.name)}
+                                </span>
+                              </div>
+                            </div>
+                            <div className="ml-3">
+                              <div className="text-sm font-medium text-gray-900">
+                                {product.name}
+                              </div>
+                              {product.brand && (
+                                <div className="text-xs text-gray-500">{product.brand}</div>
+                              )}
+                            </div>
+                          </div>
+                        </td>
+
+                        {/* Category */}
+                        <td className="px-4 py-3">
+                          <div className="text-sm text-gray-900">
+                            {product.category?.name || 'N/A'}
+                          </div>
+                          {product.subcategory?.name && (
+                            <div className="text-xs text-gray-500">{product.subcategory.name}</div>
+                          )}
+                        </td>
+
+                        {/* Price */}
+                        <td className="px-4 py-3">
+                          <div className="text-sm font-medium text-gray-900">
+                            {formatPriceWithGST(product)}
+                          </div>
+                        </td>
+
+                        {/* Stock */}
+                        <td className="px-4 py-3">
+                          <div className="text-sm text-gray-900">
+                            {product.stockQuantity || 0}
+                          </div>
+                        </td>
+
+                        {/* Status */}
+                        <td className="px-4 py-3">
+                          {(product.isSelectedByVendor || selectedProducts.has(product._id)) ? (
+                            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                              <CheckCircleIcon className="h-3 w-3 mr-1" />
+                              In Inventory
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                              <EyeSlashIcon className="h-3 w-3 mr-1" />
+                              Available
+                            </span>
+                          )}
+                        </td>
+
+                        {/* Actions */}
+                        <td className="px-4 py-3 text-right">
+                          {(product.isSelectedByVendor || selectedProducts.has(product._id)) ? (
+                            <button
+                              onClick={() => openRemoveModal(product)}
+                              disabled={removingProduct === product._id}
+                              className="inline-flex items-center px-3 py-1.5 border border-red-300 text-xs font-medium rounded-md text-red-700 bg-white hover:bg-red-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                              title="Remove from inventory"
+                            >
+                              {removingProduct === product._id ? (
+                                <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-red-700"></div>
+                              ) : (
+                                <>
+                                  <TrashIcon className="h-3 w-3 mr-1" />
+                                  Remove
+                                </>
+                              )}
+                            </button>
+                          ) : (
+                            <button
+                              onClick={() => openSelectionModal(product)}
+                              disabled={selectingProduct === product._id}
+                              className={`inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-md transition-colors duration-200 ${
+                                selectingProduct === product._id
+                                  ? 'bg-gray-100 text-gray-500 cursor-not-allowed'
+                                  : 'bg-blue-600 text-white hover:bg-blue-700'
+                              }`}
+                            >
+                              {selectingProduct === product._id ? (
+                                <>
+                                  <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-white mr-1"></div>
+                                  Adding...
+                                </>
+                              ) : (
+                                <>
+                                  <ShoppingCartIcon className="h-3 w-3 mr-1" />
+                                  Add
+                                </>
+                              )}
+                            </button>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
 
             {/* Pagination - Compact */}
-            {totalPages > 1 && (
+            {totalFilteredPages > 1 && (
               <div className="mt-4 flex items-center justify-between border-t border-gray-200 pt-3">
                 <div className="flex-1 flex justify-between sm:hidden">
                   <button
@@ -523,8 +912,8 @@ const SelectProducts = () => {
                     Previous
                   </button>
                   <button
-                    onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
-                    disabled={currentPage >= totalPages}
+                    onClick={() => setCurrentPage(Math.min(totalFilteredPages, currentPage + 1))}
+                    disabled={currentPage >= totalFilteredPages}
                     className="ml-3 relative inline-flex items-center px-3 py-1.5 border border-gray-300 text-xs font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     Next
@@ -534,7 +923,7 @@ const SelectProducts = () => {
                   <div>
                     <p className="text-xs text-gray-700">
                       Page <span className="font-medium">{currentPage}</span> of{' '}
-                      <span className="font-medium">{totalPages}</span>
+                      <span className="font-medium">{totalFilteredPages}</span>
                     </p>
                   </div>
                   <div>
@@ -546,8 +935,8 @@ const SelectProducts = () => {
                       >
                         <ChevronLeftIcon className="h-3 w-3" />
                       </button>
-                      {[...Array(Math.min(5, totalPages))].map((_, index) => {
-                        const page = Math.max(1, Math.min(totalPages - 4, currentPage - 2)) + index;
+                      {[...Array(Math.min(5, totalFilteredPages))].map((_, index) => {
+                        const page = Math.max(1, Math.min(totalFilteredPages - 4, currentPage - 2)) + index;
                         return (
                           <button
                             key={page}
@@ -563,8 +952,8 @@ const SelectProducts = () => {
                         );
                       })}
                       <button
-                        onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
-                        disabled={currentPage >= totalPages}
+                        onClick={() => setCurrentPage(Math.min(totalFilteredPages, currentPage + 1))}
+                        disabled={currentPage >= totalFilteredPages}
                         className="relative inline-flex items-center px-2 py-1.5 rounded-r-md border border-gray-300 bg-white text-xs font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         <ChevronRightIcon className="h-3 w-3" />
@@ -580,24 +969,39 @@ const SelectProducts = () => {
 
       {/* Selection Modal - Compact */}
       {showSelectionModal && selectedProductForModal && (
-        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-          <div className="relative top-20 mx-auto p-4 border w-80 shadow-lg rounded-md bg-white">
+        <div className="fixed inset-0 bg-black/50 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+          <div className="relative top-20 mx-auto p-4 w-80  rounded-md bg-white">
             <div className="mt-2">
               <h3 className="text-base font-medium text-gray-900 mb-3">
                 Add Product to Inventory
               </h3>
               
               <div className="mb-3">
-                <img
-                  src={getProductImage(selectedProductForModal)}
-                  alt={selectedProductForModal.name}
-                  className="w-16 h-16 object-cover rounded-md mx-auto"
-                  onError={(e) => {
-                    e.target.src = '/api/placeholder/100/100';
-                  }}
-                />
+                <div className="w-16 h-16 mx-auto rounded-md overflow-hidden">
+                  {getProductImage(selectedProductForModal) ? (
+                    <img
+                      src={getProductImage(selectedProductForModal)}
+                      alt={selectedProductForModal.name}
+                      className="w-full h-full object-cover"
+                      onError={(e) => {
+                        // Hide the image and show initials fallback
+                        e.target.style.display = 'none';
+                        e.target.nextElementSibling.style.display = 'flex';
+                      }}
+                    />
+                  ) : null}
+                  <div 
+                    className={`w-full h-full flex items-center justify-center bg-blue-500 text-white ${
+                      getProductImage(selectedProductForModal) ? 'hidden' : 'flex'
+                    }`}
+                  >
+                    <span className="text-sm font-bold">
+                      {getProductInitials(selectedProductForModal.name)}
+                    </span>
+                  </div>
+                </div>
                 <h4 className="text-center mt-2 text-sm font-medium">{selectedProductForModal.name}</h4>
-                <p className="text-center text-xs text-gray-600">{formatPrice(selectedProductForModal.pricing?.basePrice || 0)}</p>
+                <p className="text-center text-xs text-gray-600">{formatPriceWithGST(selectedProductForModal)} (Inc. GST)</p>
               </div>
 
               <div className="space-y-3">
@@ -649,6 +1053,69 @@ const SelectProducts = () => {
                   className="px-3 py-1.5 bg-blue-600 text-white text-xs rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200"
                 >
                   Add to Inventory
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Remove Confirmation Modal */}
+      {showRemoveModal && productToRemove && (
+        <div className="fixed inset-0 bg-black/50 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+          <div className="relative top-20 mx-auto p-4 w-80 shadow-lg rounded-md bg-white">
+            <div className="mt-2">
+              <h3 className="text-base font-medium text-gray-900 mb-3">
+                Remove Product from Inventory
+              </h3>
+              
+              <div className="mb-3">
+                <div className="w-16 h-16 mx-auto rounded-md overflow-hidden">
+                  {getProductImage(productToRemove) ? (
+                    <img
+                      src={getProductImage(productToRemove)}
+                      alt={productToRemove.name}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center bg-blue-500 text-white">
+                      <span className="text-sm font-bold">
+                        {getProductInitials(productToRemove.name)}
+                      </span>
+                    </div>
+                  )}
+                </div>
+                <h4 className="text-center mt-2 text-sm font-medium">{productToRemove.name}</h4>
+                <p className="text-center text-xs text-gray-600">{formatPriceWithGST(productToRemove)} (Inc. GST)</p>
+              </div>
+
+              <p className="text-sm text-gray-600 text-center mb-4">
+                Are you sure you want to remove this product from your inventory? This action cannot be undone.
+              </p>
+
+              <div className="flex items-center justify-end space-x-2">
+                <button
+                  onClick={() => {
+                    setShowRemoveModal(false);
+                    setProductToRemove(null);
+                  }}
+                  className="px-3 py-1.5 bg-gray-300 text-gray-700 text-xs rounded-md hover:bg-gray-400 transition-colors duration-200"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={() => handleRemoveProduct(productToRemove)}
+                  disabled={removingProduct === productToRemove._id}
+                  className="px-3 py-1.5 bg-red-600 text-white text-xs rounded-md hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200"
+                >
+                  {removingProduct === productToRemove._id ? (
+                    <>
+                      <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-white mr-1 inline-block"></div>
+                      Removing...
+                    </>
+                  ) : (
+                    'Remove Product'
+                  )}
                 </button>
               </div>
             </div>

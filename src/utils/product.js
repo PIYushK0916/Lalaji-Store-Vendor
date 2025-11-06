@@ -187,7 +187,7 @@ export const deleteProduct = async (id) => {
 
 // Get available products for vendor to select (products not yet added to vendor's inventory)
 // Backend response structure: { success: true, count, total, pagination: { page, pages }, data: [...products] }
-// Supports: page, limit, category, subcategory, search, sortBy
+// Get all approved products with vendor selection status
 export const getAvailableProducts = async (params = {}) => {
   console.log('getAvailableProducts called with params:', params);
 
@@ -199,15 +199,102 @@ export const getAvailableProducts = async (params = {}) => {
   }, {});
 
   const queryString = new URLSearchParams(filteredParams).toString();
-  const endpoint = `/vendor-products/available${queryString ? `?${queryString}` : ''}`;
-
-  console.log('Fetching from endpoint:', endpoint);
-
-  const response = await apiRequest(endpoint);
-
-  console.log('API Response:', response);
-
-  return response;
+  
+  try {
+    // First try the vendor-products/available endpoint
+    const vendorEndpoint = `/vendor-products/available${queryString ? `?${queryString}` : ''}`;
+    console.log('Fetching from vendor endpoint:', vendorEndpoint);
+    
+    const vendorResponse = await apiRequest(vendorEndpoint);
+    console.log('Vendor API Response:', vendorResponse);
+    
+    // If we got products from vendor endpoint, return them
+    if (vendorResponse?.success && vendorResponse?.data && vendorResponse.data.length > 0) {
+      return vendorResponse;
+    }
+    
+    // If no products from vendor endpoint, try general products endpoint
+    console.log('No products from vendor endpoint, trying general products endpoint...');
+    const generalEndpoint = `/products${queryString ? `?${queryString}` : ''}`;
+    console.log('Fetching from general endpoint:', generalEndpoint);
+    
+    const generalResponse = await apiRequest(generalEndpoint);
+    console.log('General API Response:', generalResponse);
+    console.log('General response data structure:', {
+      hasData: !!generalResponse?.data,
+      dataType: typeof generalResponse?.data,
+      isArray: Array.isArray(generalResponse?.data),
+      hasProducts: !!(generalResponse?.data?.products),
+      productsType: typeof generalResponse?.data?.products,
+      productsIsArray: Array.isArray(generalResponse?.data?.products)
+    });
+    
+    if (generalResponse?.success && generalResponse?.data) {
+      // Get vendor's selected products to mark them as selected
+      let selectedProductIds = new Set();
+      let vendorProductMap = new Map(); // Map product ID to vendor product ID
+      try {
+        const selectedResponse = await apiRequest('/vendor-products/my-products?limit=1000');
+        if (selectedResponse?.data) {
+          selectedResponse.data.forEach(vp => {
+            const productId = vp.product?._id || vp.product;
+            if (productId) {
+              selectedProductIds.add(productId);
+              vendorProductMap.set(productId, vp._id); // Store vendor product ID
+            }
+          });
+        }
+        console.log('Found selected product IDs:', Array.from(selectedProductIds));
+        console.log('Vendor product mapping:', Array.from(vendorProductMap.entries()));
+      } catch (selectedError) {
+        console.warn('Could not fetch selected products:', selectedError.message);
+        // Continue without selected products info
+      }
+      
+      // Handle different response structures for general products
+      let productsArray = [];
+      if (Array.isArray(generalResponse.data)) {
+        productsArray = generalResponse.data;
+      } else if (generalResponse.data.products && Array.isArray(generalResponse.data.products)) {
+        productsArray = generalResponse.data.products;
+      } else {
+        console.log('Unexpected general response structure:', generalResponse.data);
+        productsArray = [];
+      }
+      
+      console.log('Products array length:', productsArray.length);
+      
+      // Add selection status to products
+      const productsWithStatus = productsArray.map(product => ({
+        ...product,
+        isSelectedByVendor: selectedProductIds.has(product._id),
+        vendorProductId: vendorProductMap.get(product._id) // Include vendor product ID for removal
+      }));
+      
+      return {
+        ...generalResponse,
+        data: productsWithStatus
+      };
+    }
+    
+    return vendorResponse || generalResponse;
+    
+  } catch (error) {
+    console.error('Error in getAvailableProducts:', error);
+    console.error('Error details:', {
+      message: error.message,
+      stack: error.stack,
+      name: error.name
+    });
+    
+    // If both endpoints fail, return a proper error response
+    return {
+      success: false,
+      error: error.message || 'Failed to fetch products',
+      data: [],
+      pagination: { page: 1, pages: 0 }
+    };
+  }
 };
 
 // Select product (add to vendor's inventory)
@@ -222,6 +309,21 @@ export const selectProduct = async (productData) => {
   });
 
   console.log('selectProduct response:', response);
+
+  return response;
+};
+
+// Remove product from vendor's inventory
+// Requires: vendorProductId (not the regular product ID)
+// Response: { success: true, message: '...' }
+export const removeProduct = async (vendorProductId) => {
+  console.log('removeProduct called with vendorProductId:', vendorProductId);
+
+  const response = await apiRequest(`/vendor-products/${vendorProductId}`, {
+    method: 'DELETE'
+  });
+
+  console.log('Remove product response:', response);
 
   return response;
 };
@@ -294,6 +396,7 @@ export default {
   deleteProduct,
   getAvailableProducts,
   selectProduct,
+  removeProduct,
   getVendorSubmittedProducts,
   formatCurrency,
   formatDate,
