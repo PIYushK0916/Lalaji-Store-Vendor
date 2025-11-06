@@ -60,7 +60,7 @@ const WalletPayments = () => {
     try {
       const data = await getEarnings();
       console.log('Earnings data fetched:', data);
-      
+
       // Map API response to component state structure
       const mappedData = {
         availableBalance: data?.data?.pending?.amount || 0,
@@ -68,7 +68,7 @@ const WalletPayments = () => {
         totalEarnings: data?.data?.lifetime?.totalEarnings || 0,
         thisMonthEarnings: data?.data?.thisMonth?.earnings || 0
       };
-      
+
       setEarningsData(mappedData);
     } catch (err) {
       console.error('Error fetching earnings:', err);
@@ -102,10 +102,10 @@ const WalletPayments = () => {
 
       const data = await getPayouts(params);
       console.log('Payouts data fetched:', data);
-      
+
       // Extract payouts array from API response (data.data.payouts)
       const payoutsData = data?.data?.payouts || [];
-      
+
       // Map API response to match component structure
       const mappedPayouts = payoutsData.map(payout => ({
         _id: payout._id,
@@ -124,7 +124,7 @@ const WalletPayments = () => {
         totalOrders: payout.totalOrders,
         notes: payout.notes
       }));
-      
+
       setPayouts(mappedPayouts);
       setTotalPages(data?.data?.pagination?.pages || 1);
     } catch (err) {
@@ -138,20 +138,20 @@ const WalletPayments = () => {
   const fetchPayoutAnalytics = async () => {
     try {
       const data = await getPayouts(); // Using getPayouts as it includes summary
-      
+
       // Map API summary to analytics structure (from data.data.summary)
       const summary = data?.data?.summary;
       const mappedAnalytics = {
         totalPayouts: summary?.totalPayouts || 0,
         totalPayoutAmount: summary?.totalEarnings || summary?.completedAmount || 0,
-        averagePayoutAmount: summary?.totalPayouts > 0 
-          ? (summary?.totalEarnings / summary?.totalPayouts) 
+        averagePayoutAmount: summary?.totalPayouts > 0
+          ? (summary?.totalEarnings / summary?.totalPayouts)
           : 0,
         pendingPayouts: summary?.pendingAmount || 0,
         totalCommission: summary?.totalCommission || 0,
         totalOrders: summary?.totalOrders || 0
       };
-      
+
       setPayoutAnalytics(mappedAnalytics);
     } catch (err) {
       console.error('Error fetching payout analytics:', err);
@@ -180,10 +180,10 @@ const WalletPayments = () => {
       setLoading(true);
       const response = await getPayoutDetails(payoutId);
       console.log('Payout details fetched:', response);
-      
+
       // Extract payout from API response (data.payout structure)
       const payoutData = response?.data?.payout || response?.payout;
-      
+
       if (payoutData) {
         // Map API response to match component structure
         const mappedPayout = {
@@ -209,7 +209,7 @@ const WalletPayments = () => {
           period: payoutData.period,
           notes: payoutData.notes
         };
-        
+
         setSelectedPayout(mappedPayout);
         setShowDetailsModal(true);
       }
@@ -257,13 +257,13 @@ const WalletPayments = () => {
 
       setLoading(true);
       await requestPayout(amount);
-      
+
       setSuccessMessage('Payout request submitted successfully!');
       setTimeout(() => setSuccessMessage(null), 5000);
-      
+
       setShowPayoutModal(false);
       setPayoutAmount('');
-      
+
       // Refresh data
       await fetchAllData();
     } catch (err) {
@@ -277,7 +277,7 @@ const WalletPayments = () => {
   const getStatusBadge = (status) => {
     // Default to 'pending' if status is undefined or null
     const statusValue = status || 'pending';
-    
+
     const styles = {
       completed: 'bg-green-100 text-green-800',
       pending: 'bg-yellow-100 text-yellow-800',
@@ -323,7 +323,7 @@ const WalletPayments = () => {
   // Ensure payouts is an array before filtering
   const filteredPayouts = (Array.isArray(payouts) ? payouts : []).filter(payout => {
     const matchesSearch = payout._id?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         payout.accountDetails?.toLowerCase().includes(searchTerm.toLowerCase());
+      payout.accountDetails?.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesStatus = filterStatus === 'all' || payout.status === filterStatus;
     return matchesSearch && matchesStatus;
   });
@@ -367,7 +367,7 @@ const WalletPayments = () => {
           </div>
         </div>
       )}
-      
+
       {error && (
         <div className="rounded-md bg-red-50 p-3">
           <div className="flex">
@@ -487,7 +487,7 @@ const WalletPayments = () => {
                 <span className="hidden sm:inline">Export</span>
               </button>
             </div>
-            
+
             {/* Custom Date Range */}
             {dateFilter === 'custom' && (
               <div className="flex gap-1.5">
@@ -617,11 +617,11 @@ const WalletPayments = () => {
         <div className="fixed inset-0 z-50 bg-black/50 overflow-y-auto">
           <div className="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
             <div className="fixed inset-0 transition-opacity" onClick={() => setShowPayoutModal(false)}></div>
-            
+
             <div className="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden  transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
               <div className="bg-white px-4 pt-4 pb-3 sm:p-5">
                 <h3 className="text-base font-medium text-gray-900 mb-3">Request Payout</h3>
-                
+
                 <div className="space-y-2.5">
                   <div className="bg-gray-50 p-2.5 rounded-lg">
                     <div className="text-sm text-gray-600">
@@ -631,7 +631,7 @@ const WalletPayments = () => {
                       Minimum payout amount: ₹100
                     </div>
                   </div>
-                  
+
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Payout Amount</label>
                     <div className="relative">
@@ -650,7 +650,7 @@ const WalletPayments = () => {
                       />
                     </div>
                   </div>
-                  
+
                   <div className="bg-blue-50 p-2.5 rounded-lg">
                     <div className="text-sm text-blue-700 font-medium">
                       Payout Details:
@@ -663,7 +663,7 @@ const WalletPayments = () => {
                   </div>
                 </div>
               </div>
-              
+
               <div className="bg-gray-50 px-4 py-2.5 sm:px-5 sm:flex sm:flex-row-reverse gap-2">
                 <button
                   onClick={handlePayoutRequest}
@@ -689,14 +689,12 @@ const WalletPayments = () => {
 
       {/* Payout Details Modal */}
       {showDetailsModal && selectedPayout && (
-        <div className="fixed inset-0 z-50 bg-black/50  overflow-y-auto">
+        <div className="fixed inset-0 z-99 bg-black/50  overflow-y-auto">
           <div className="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
-            <div className="fixed inset-0 transition-opacity" onClick={() => setShowDetailsModal(false)}></div>
-            
             <div className="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden  transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
               <div className="bg-white px-4 pt-4 pb-3 sm:p-5">
                 <h3 className="text-base font-medium text-gray-900 mb-3">Payout Details</h3>
-                
+
                 <div className="space-y-2.5">
                   <div className="bg-gray-50 p-2.5 rounded-lg">
                     <div className="grid grid-cols-2 gap-2.5">
@@ -824,10 +822,10 @@ const WalletPayments = () => {
                                 <span className="font-medium text-gray-900">{order.orderNumber}</span>
                                 {order.createdAt && (
                                   <div className="text-xs text-gray-500 mt-0.5">
-                                    {new Date(order.createdAt).toLocaleDateString('en-IN', { 
-                                      day: '2-digit', 
-                                      month: 'short', 
-                                      year: 'numeric' 
+                                    {new Date(order.createdAt).toLocaleDateString('en-IN', {
+                                      day: '2-digit',
+                                      month: 'short',
+                                      year: 'numeric'
                                     })}
                                   </div>
                                 )}
@@ -872,7 +870,7 @@ const WalletPayments = () => {
                   )}
                 </div>
               </div>
-              
+
               <div className="bg-gray-50 px-4 py-2.5 sm:px-5 sm:flex sm:flex-row-reverse">
                 <button
                   onClick={() => setShowDetailsModal(false)}

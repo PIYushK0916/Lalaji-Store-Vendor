@@ -968,7 +968,7 @@ const SelectProducts = () => {
               </h3>
               
               <div className="mb-3">
-                <div className="w-16 h-16 mx-auto rounded-md overflow-hidden">
+                <div className="w-16 h-16 mx-auto  rounded-md overflow-hidden">
                   {getProductImage(selectedProductForModal) ? (
                     <img
                       src={getProductImage(selectedProductForModal)}
@@ -1006,7 +1006,7 @@ const SelectProducts = () => {
                     min="1"
                     value={selectionData.stock}
                     onChange={(e) => setSelectionData({ ...selectionData, stock: e.target.value })}
-                    className="block w-full rounded-md border-gray-300 py-2 px-3 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                    className="block w-full rounded-md border border-gray-300 py-2 px-3 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
                     placeholder="Enter quantity"
                     required
                   />
@@ -1021,7 +1021,7 @@ const SelectProducts = () => {
                     rows={2}
                     value={selectionData.notes}
                     onChange={(e) => setSelectionData({ ...selectionData, notes: e.target.value })}
-                    className="block w-full rounded-md border-gray-300 py-2 px-3 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                    className="block w-full rounded-md border border-gray-300 py-2 px-3 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
                     placeholder="Any additional notes..."
                   />
                 </div>
