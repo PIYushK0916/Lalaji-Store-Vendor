@@ -147,7 +147,7 @@ const InventoryManagement = () => {
       const response = await createVendorProduct(formData);
       
       if (response.success) {
-        setSuccessMessage('Product added successfully! It will be available after admin approval.');
+        setSuccessMessage('Product added successfully to your inventory! You can now manage its stock.');
         setShowAddProductModal(false);
         setNewProduct({
           name: '',
@@ -909,7 +909,7 @@ const InventoryManagement = () => {
                   </button>
                 </div>
                 <p className="text-xs text-gray-500 mt-1">
-                  Add your own product to sell in your store. It will require admin approval.
+                  Add your own product to sell in your store. It will be added directly to your inventory.
                 </p>
               </div>
 
