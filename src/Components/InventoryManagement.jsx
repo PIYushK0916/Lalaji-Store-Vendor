@@ -503,6 +503,11 @@ const InventoryManagement = () => {
           <p className="mt-0.5 text-xs text-gray-500">
             Track and manage your product inventory levels
           </p>
+          {selectedProducts.size > 0 && (
+            <p className="mt-1 text-xs font-medium text-blue-600">
+              ✓ {selectedProducts.size} product{selectedProducts.size !== 1 ? 's' : ''} selected for bulk update
+            </p>
+          )}
         </div>
         <div className="mt-3 sm:mt-0 flex space-x-2">
           <button 
@@ -532,14 +537,26 @@ const InventoryManagement = () => {
           <button className="inline-flex items-center rounded-lg bg-white border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50">
             Export Report
           </button>
-          <button 
-            onClick={() => setShowBulkUpdateModal(true)}
-            disabled={selectedProducts.size === 0}
-            className="inline-flex items-center rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            <ArchiveBoxIcon className="h-3.5 w-3.5 mr-1.5" />
-            Bulk Update {selectedProducts.size > 0 && `(${selectedProducts.size})`}
-          </button>
+          <div className="relative group">
+            <button 
+              onClick={() => setShowBulkUpdateModal(true)}
+              disabled={selectedProducts.size === 0}
+              className={`inline-flex items-center rounded-lg px-3 py-1.5 text-xs font-medium transition-all ${
+                selectedProducts.size === 0 
+                  ? 'bg-gray-300 text-gray-500 cursor-not-allowed' 
+                  : 'bg-blue-600 text-white hover:bg-blue-500 cursor-pointer'
+              }`}
+            >
+              <ArchiveBoxIcon className="h-3.5 w-3.5 mr-1.5" />
+              Bulk Update {selectedProducts.size > 0 && `(${selectedProducts.size})`}
+            </button>
+            {selectedProducts.size === 0 && (
+              <div className="hidden group-hover:block absolute bottom-full mb-2 right-0 w-48 bg-gray-900 text-white text-xs rounded py-2 px-3 z-10">
+                ℹ️ Check product boxes below to enable bulk update
+                <div className="absolute top-full right-4 -mt-1 border-4 border-transparent border-t-gray-900"></div>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
