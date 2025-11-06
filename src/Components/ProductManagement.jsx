@@ -15,7 +15,7 @@ import {
   TableCellsIcon,
   Squares2X2Icon
 } from '@heroicons/react/24/outline';
-import { addProduct, updateProduct, deleteProduct, selectProduct, getAvailableProducts, getProductsByVendor, getVendorSubmittedProducts } from '../utils/product';
+import { addProduct, updateProduct, deleteProduct, getProductsByVendor, getVendorSubmittedProducts } from '../utils/product';
 import { getCategories, getSubcategories } from '../utils/category';
 import { auth } from '../utils/auth';
 
@@ -56,13 +56,13 @@ const CustomDropdown = ({
           type="button"
           disabled={disabled}
           onClick={() => setIsOpen(!isOpen)}
-          className="block w-full px-2 py-1.5 text-xs text-left rounded border border-gray-300 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 bg-white disabled:bg-gray-100 disabled:cursor-not-allowed"
+          className="block w-full px-3 py-2 text-sm text-left rounded-md border border-gray-300 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 bg-white disabled:bg-gray-100 disabled:cursor-not-allowed"
         >
           <span className={selectedOption ? "text-gray-900" : "text-gray-500"}>
             {selectedOption ? selectedOption.label : placeholder}
           </span>
-          <span className="absolute inset-y-0 right-0 flex items-center pr-2 pointer-events-none">
-            <svg className="h-3 w-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <span className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
+            <svg className="h-4 w-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
             </svg>
           </span>
@@ -89,7 +89,7 @@ const CustomDropdown = ({
                     key={option.value}
                     type="button"
                     onClick={() => handleSelect(option)}
-                    className={`w-full px-3 py-2 text-xs text-left hover:bg-gray-100 focus:bg-gray-100 focus:outline-none ${
+                    className={`w-full px-3 py-2 text-sm text-left hover:bg-gray-100 focus:bg-gray-100 focus:outline-none ${
                       value === option.value ? 'bg-blue-50 text-blue-700' : 'text-gray-900'
                     }`}
                   >
@@ -97,7 +97,7 @@ const CustomDropdown = ({
                   </button>
                 ))
               ) : (
-                <div className="px-3 py-2 text-xs text-gray-500">No options found</div>
+                <div className="px-3 py-2 text-sm text-gray-500">No options found</div>
               )}
             </div>
           </div>
@@ -121,7 +121,7 @@ const ProductManagement = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [showModal, setShowModal] = useState(false);
-  const [modalMode, setModalMode] = useState('add'); // 'add', 'edit', or 'select'
+  const [modalMode, setModalMode] = useState('add'); // 'add' or 'edit'
   const [editingProduct, setEditingProduct] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
@@ -131,17 +131,6 @@ const ProductManagement = () => {
   const [totalProducts, setTotalProducts] = useState(0);
   const [totalPages, setTotalPages] = useState(0);
   const [viewMode, setViewMode] = useState('list'); // 'list' or 'cards'
-  const [selectionData, setSelectionData] = useState({
-    productId: '',
-    stock: '',
-    notes: ''
-  });
-  const [availableProducts, setAvailableProducts] = useState([]);
-  const [availableProductsLoading, setAvailableProductsLoading] = useState(false);
-  const [selectedProductForSelection, setSelectedProductForSelection] = useState(null);
-  const [availableSearchTerm, setAvailableSearchTerm] = useState('');
-  const [availablePage, setAvailablePage] = useState(1);
-  const [availableTotalPages, setAvailableTotalPages] = useState(0);
 
   // Status counts for cards
   const [statusCounts, setStatusCounts] = useState({
@@ -413,17 +402,6 @@ const ProductManagement = () => {
     return () => clearTimeout(debounceTimer);
   }, [currentPage, searchTerm, filterStatus, filterCategory]);
 
-  // Fetch available products when modal is in select mode
-  useEffect(() => {
-    if (showModal && modalMode === 'select') {
-      const debounceTimer = setTimeout(() => {
-        fetchAvailableProducts();
-      }, availableSearchTerm ? 500 : 0);
-
-      return () => clearTimeout(debounceTimer);
-    }
-  }, [showModal, modalMode, availablePage, availableSearchTerm]);
-
   const fetchCategories = async () => {
     try {
       console.log('fetchCategories - Fetching categories from API');
@@ -617,72 +595,10 @@ const ProductManagement = () => {
     }
   };
 
-  const fetchAvailableProducts = async () => {
-    try {
-      setAvailableProductsLoading(true);
-      setError(null);
-
-      const params = {
-        page: availablePage,
-        limit: 10,
-        search: availableSearchTerm
-      };
-
-      console.log('fetchAvailableProducts - Calling API with params:', params);
-
-      const response = await getAvailableProducts(params);
-
-      console.log('fetchAvailableProducts - Full API Response:', response);
-
-      if (response?.success && response?.data) {
-        console.log('fetchAvailableProducts - Success! Products count:', response.data.length);
-        setAvailableProducts(response.data);
-        setAvailableTotalPages(response.pagination?.pages || 1);
-      } else {
-        console.warn('fetchAvailableProducts - Unexpected response format:', response);
-        setAvailableProducts([]);
-        setAvailableTotalPages(1);
-        setError('Unable to load available products. Please try again.');
-      }
-    } catch (err) {
-      console.error('fetchAvailableProducts - Error:', err);
-      console.error('fetchAvailableProducts - Error message:', err.message);
-      console.error('fetchAvailableProducts - Error stack:', err.stack);
-      setAvailableProducts([]);
-      setAvailableTotalPages(1);
-      setError(`Failed to load products: ${err.message}`);
-    } finally {
-      setAvailableProductsLoading(false);
-    }
-  };
-
-  const handleOpenSelectProduct = () => {
-    setModalMode('select');
-    setShowModal(true);
-    setSelectedProductForSelection(null);
-    setSelectionData({
-      productId: '',
-      stock: '',
-      notes: ''
-    });
-  };
-
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      if (modalMode === 'select') {
-        // Handle product selection
-        if (!selectedProductForSelection) {
-          setError('Please select a product');
-          return;
-        }
-
-        await selectProduct({
-          productId: selectedProductForSelection._id || selectedProductForSelection.id,
-          stock: parseInt(selectionData.stock),
-          notes: selectionData.notes
-        });
-      } else if (editingProduct) {
+      if (editingProduct) {
         await updateProduct(editingProduct.id, formData);
       } else {
         // Create comprehensive product data structure based on Product schema
@@ -895,14 +811,6 @@ const ProductManagement = () => {
     });
     setEditingProduct(null);
     setModalMode('add');
-    setSelectedProductForSelection(null);
-    setSelectionData({
-      productId: '',
-      stock: '',
-      notes: ''
-    });
-    setAvailableSearchTerm('');
-    setAvailablePage(1);
     // Reset GST info
     setGstInfo({
       rate: 0,
@@ -1030,13 +938,6 @@ const ProductManagement = () => {
         </div>
         <div className="mt-2 sm:mt-0 flex gap-2">
           <button
-            onClick={handleOpenSelectProduct}
-            className="inline-flex items-center rounded-md bg-green-600 px-2.5 py-1.5 text-xs font-semibold text-white  hover:bg-green-500"
-          >
-            <CheckCircleIcon className="h-3.5 w-3.5 mr-1.5" />
-            Select Product
-          </button>
-          <button
             onClick={() => {
               setModalMode('add');
               setShowModal(true);
@@ -1157,55 +1058,68 @@ const ProductManagement = () => {
         </button>
       </div>
 
-      {/* Filters - Super Compact */}
-      <div className="bg-white border border-gray-200 rounded-lg p-2.5">
-        <div className="flex flex-wrap items-center gap-2">
+      {/* Filters - Compact */}
+      <div className="bg-white border border-gray-200 rounded-lg p-3">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-3 items-end">
           {/* Search */}
-          <div className="relative flex-1 min-w-[180px]">
-            <MagnifyingGlassIcon className="pointer-events-none absolute inset-y-0 left-0 h-full w-4 text-gray-400 pl-2" />
-            <input
-              type="text"
-              placeholder="Search products..."
-              value={searchTerm}
-              onChange={(e) => handleSearchChange(e.target.value)}
-              className="block w-full rounded-md border-gray-300 pl-8 py-1.5 focus:border-blue-500 focus:ring-blue-500 text-xs"
-            />
+          <div className="md:col-span-2">
+            <label className="block text-xs font-medium text-gray-700 mb-1">
+              Search Products
+            </label>
+            <div className="relative">
+              <MagnifyingGlassIcon className="pointer-events-none absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+              <input
+                type="text"
+                placeholder="Search products..."
+                value={searchTerm}
+                onChange={(e) => handleSearchChange(e.target.value)}
+                className="block w-full rounded-md border border-gray-300 pl-10 pr-3 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+              />
+            </div>
           </div>
 
           {/* Status Filter */}
-          <select
+          <CustomDropdown
+            label="Status"
             value={filterStatus}
-            onChange={(e) => handleStatusChange(e.target.value)}
-            className="rounded-md border-gray-300 py-1.5 px-2 focus:border-blue-500 focus:ring-blue-500 text-xs"
-          >
-            <option value="all">All Status</option>
-            <option value="active">Active</option>
-            <option value="inactive">Inactive</option>
-            <option value="out_of_stock">Out of Stock</option>
-            <option value="pending_verification">Pending Verification</option>
-          </select>
+            onChange={handleStatusChange}
+            options={[
+              { value: 'all', label: 'All Status' },
+              { value: 'active', label: 'Active' },
+              { value: 'inactive', label: 'Inactive' },
+              { value: 'out_of_stock', label: 'Out of Stock' },
+              { value: 'pending_verification', label: 'Pending Verification' }
+            ]}
+            placeholder="Select Status"
+          />
 
           {/* Category Filter */}
-          <select
+          <CustomDropdown
+            label="Category"
             value={filterCategory}
-            onChange={(e) => handleCategoryChange(e.target.value)}
-            className="rounded-md border-gray-300 py-1.5 px-2 focus:border-blue-500 focus:ring-blue-500 text-xs"
-          >
-            <option value="all">All Categories</option>
-            {categories.map(category => (
-              <option key={category._id || category.id} value={category._id || category.id}>
-                {category.name}
-              </option>
-            ))}
-          </select>
+            onChange={handleCategoryChange}
+            options={[
+              { value: 'all', label: 'All Categories' },
+              ...categories.map(category => ({
+                value: category._id || category.id,
+                label: category.name
+              }))
+            ]}
+            placeholder="Select Category"
+          />
+        </div>
 
-          {/* View Toggle Buttons */}
-          <div className="ml-auto inline-flex rounded-md border border-gray-300 bg-white p-0.5">
+        {/* View Toggle Buttons */}
+        <div className="mt-3 flex items-center justify-between">
+          <div className="text-xs text-gray-500">
+            Showing {totalProducts} products
+          </div>
+          <div className="inline-flex rounded-md border border-gray-300 bg-white overflow-hidden">
             <button
               onClick={() => setViewMode('list')}
-              className={`inline-flex items-center rounded px-2 py-1 text-xs font-medium transition-colors ${
+              className={`inline-flex items-center px-2.5 py-1.5 text-xs font-medium transition-colors ${
                 viewMode === 'list'
-                  ? 'bg-blue-600 text-white '
+                  ? 'bg-blue-600 text-white'
                   : 'text-gray-700 hover:bg-gray-50'
               }`}
             >
@@ -1214,9 +1128,9 @@ const ProductManagement = () => {
             </button>
             <button
               onClick={() => setViewMode('cards')}
-              className={`inline-flex items-center rounded px-2 py-1 text-xs font-medium transition-colors ${
+              className={`inline-flex items-center px-2.5 py-1.5 text-xs font-medium transition-colors ${
                 viewMode === 'cards'
-                  ? 'bg-blue-600 text-white '
+                  ? 'bg-blue-600 text-white'
                   : 'text-gray-700 hover:bg-gray-50'
               }`}
             >
@@ -1584,165 +1498,14 @@ const ProductManagement = () => {
           <div className="flex items-center justify-center min-h-screen px-4 py-8">
             <div className="fixed inset-0 transition-opacity" onClick={() => setShowModal(false)}></div>
 
-            <div className={`relative bg-white rounded-lg text-left overflow-hidden  transform transition-all w-full ${modalMode === 'select' ? 'max-w-4xl' : 'max-w-7xl'}`}>
+            <div className="relative bg-white rounded-lg text-left overflow-hidden transform transition-all w-full max-w-7xl">
               <form onSubmit={handleSubmit}>
                 <div className="bg-white px-8 pt-4 pb-3">
                   <h3 className="text-lg font-semibold text-gray-900 mb-4">
-                    {modalMode === 'select' ? 'Select Product' : editingProduct ? 'Edit Product' : 'Add New Product'}
+                    {editingProduct ? 'Edit Product' : 'Add New Product'}
                   </h3>
 
-                  {modalMode === 'select' ? (
-                    <div className="space-y-4">
-                      {/* Search Available Products */}
-                      <div className="relative">
-                        <MagnifyingGlassIcon className="pointer-events-none absolute inset-y-0 left-0 h-full w-5 text-gray-400 pl-3" />
-                        <input
-                          type="text"
-                          placeholder="Search available products..."
-                          value={availableSearchTerm}
-                          onChange={(e) => {
-                            setAvailableSearchTerm(e.target.value);
-                            setAvailablePage(1);
-                          }}
-                          className="block w-full rounded-lg border-gray-300 pl-10 focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
-                        />
-                      </div>
-
-                      {/* Available Products List */}
-                      <div className="border border-gray-200 rounded-lg max-h-96 overflow-y-auto">
-                        {availableProductsLoading ? (
-                          <div className="flex flex-col items-center justify-center h-32 space-y-2">
-                            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-                            <p className="text-sm text-gray-500">Loading available products...</p>
-                          </div>
-                        ) : error ? (
-                          <div className="text-center py-8 px-4">
-                            <XCircleIcon className="h-12 w-12 text-red-500 mx-auto mb-3" />
-                            <p className="text-sm text-red-600 font-medium">{error}</p>
-                            <button
-                              type="button"
-                              onClick={() => fetchAvailableProducts()}
-                              className="mt-3 text-sm text-blue-600 hover:text-blue-700"
-                            >
-                              Try again
-                            </button>
-                          </div>
-                        ) : availableProducts.length === 0 ? (
-                          <div className="text-center py-8 px-4">
-                            <PhotoIcon className="h-12 w-12 text-gray-400 mx-auto mb-3" />
-                            <p className="text-sm text-gray-500 font-medium">No available products found</p>
-                            <p className="text-xs text-gray-400 mt-1">
-                              {availableSearchTerm
-                                ? 'Try adjusting your search terms'
-                                : 'All approved products have been added to your inventory'}
-                            </p>
-                          </div>
-                        ) : (
-                          <div className="divide-y divide-gray-200">
-                            {availableProducts.map((product) => (
-                              <div
-                                key={product._id || product.id}
-                                onClick={() => setSelectedProductForSelection(product)}
-                                className={`p-4 cursor-pointer hover:bg-gray-50 transition-colors ${
-                                  selectedProductForSelection?._id === product._id || selectedProductForSelection?.id === product.id
-                                    ? 'bg-blue-50 border-l-4 border-blue-500'
-                                    : ''
-                                }`}
-                              >
-                                <div className="flex items-start space-x-4">
-                                  <div className="flex-shrink-0">
-                                    {product.images && product.images.length > 0 ? (
-                                      <img
-                                        className="h-16 w-16 rounded-lg object-cover"
-                                        src={product.images[0]?.url || product.images[0]}
-                                        alt={product.images[0]?.altText || product.name}
-                                      />
-                                    ) : (
-                                      <div className="h-16 w-16 rounded-lg bg-gray-100 flex items-center justify-center">
-                                        <PhotoIcon className="h-8 w-8 text-gray-400" />
-                                      </div>
-                                    )}
-                                  </div>
-                                  <div className="flex-1 min-w-0">
-                                    <p className="text-sm font-medium text-gray-900">{product.name}</p>
-                                    <p className="text-sm text-gray-500 truncate">{product.description}</p>
-                                    <div className="mt-2 flex items-center space-x-4 text-sm">
-                                      <span className="text-gray-600">
-                                        <TagIcon className="inline h-4 w-4 mr-1" />
-                                        {product.category?.name || product.category || 'N/A'}
-                                      </span>
-                                      <span className="text-gray-600">SKU: {product.sku}</span>
-                                    </div>
-                                  </div>
-                                  <div className="flex-shrink-0">
-                                    {selectedProductForSelection?._id === product._id || selectedProductForSelection?.id === product.id ? (
-                                      <CheckCircleIcon className="h-6 w-6 text-blue-600" />
-                                    ) : (
-                                      <div className="h-6 w-6 rounded-full border-2 border-gray-300"></div>
-                                    )}
-                                  </div>
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Pagination for Available Products */}
-                      {availableTotalPages > 1 && (
-                        <div className="flex justify-center space-x-2">
-                          <button
-                            type="button"
-                            onClick={() => setAvailablePage(Math.max(1, availablePage - 1))}
-                            disabled={availablePage === 1}
-                            className="px-3 py-1 border border-gray-300 rounded-md text-sm disabled:opacity-50"
-                          >
-                            Previous
-                          </button>
-                          <span className="px-3 py-1 text-sm text-gray-700">
-                            Page {availablePage} of {availableTotalPages}
-                          </span>
-                          <button
-                            type="button"
-                            onClick={() => setAvailablePage(Math.min(availableTotalPages, availablePage + 1))}
-                            disabled={availablePage === availableTotalPages}
-                            className="px-3 py-1 border border-gray-300 rounded-md text-sm disabled:opacity-50"
-                          >
-                            Next
-                          </button>
-                        </div>
-                      )}
-
-                      {/* Stock and Notes Form */}
-                      {selectedProductForSelection && (
-                        <div className="border-t border-gray-200 pt-4 space-y-4">
-                          <div>
-                            <label className="block text-sm font-medium text-gray-700">Initial Stock</label>
-                            <input
-                              type="number"
-                              required
-                              min="0"
-                              value={selectionData.stock}
-                              onChange={(e) => setSelectionData({...selectionData, stock: e.target.value})}
-                              className="mt-1 block w-full rounded-md border-gray-300  focus:border-blue-500 focus:ring-blue-500"
-                              placeholder="Enter initial stock quantity"
-                            />
-                          </div>
-                          <div>
-                            <label className="block text-sm font-medium text-gray-700">Notes (Optional)</label>
-                            <textarea
-                              rows={3}
-                              value={selectionData.notes}
-                              onChange={(e) => setSelectionData({...selectionData, notes: e.target.value})}
-                              className="mt-1 block w-full rounded-md border-gray-300  focus:border-blue-500 focus:ring-blue-500"
-                              placeholder="Add any notes about this product..."
-                            />
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  ) : (
-                    <div className="space-y-3">
+                  <div className="space-y-3">
                       {/* Basic Information Section */}
                       <div className="bg-gray-50 border border-gray-200 rounded-lg p-3">
                         <div className="flex items-center mb-2">
@@ -2416,7 +2179,6 @@ const ProductManagement = () => {
                         </div>
                       </div>
                     </div>
-                  )}
                 </div>
 
                 <div className="bg-white px-8 py-3 flex items-center justify-between border-t border-gray-200">
@@ -2451,10 +2213,10 @@ const ProductManagement = () => {
                     </button>
                     <button
                       type="submit"
-                      disabled={modalMode === 'select' && !selectedProductForSelection}
+                      disabled={false}
                       className="inline-flex justify-center items-center rounded-md px-5 py-2 bg-green-600 text-sm font-semibold text-white hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed "
                     >
-                      {modalMode === 'select' ? 'Select Product' : editingProduct ? 'Update Product' : 'Save Product'}
+                      {editingProduct ? 'Update Product' : 'Save Product'}
                     </button>
                   </div>
                 </div>

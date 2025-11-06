@@ -32,6 +32,7 @@ import {
 import Dashboard from "./Pages/Dashboard";
 import Login from "./Pages/Login";
 import ProductManagement from "./Components/ProductManagement";
+import SelectProducts from "./Components/SelectProducts";
 import OrderManagement from "./Components/OrderManagement";
 import InventoryManagement from "./Components/InventoryManagement";
 import WalletPayments from "./Components/WalletPayments";
@@ -149,6 +150,7 @@ const VendorLayout = ({ children }) => {
       items: [
         { name: "Dashboard", href: "/dashboard", icon: HomeIcon },
         { name: "Products", href: "/products", icon: CubeIcon },
+        { name: "Select Products", href: "/select-products", icon: TagIcon },
         { name: "Inventory", href: "/inventory", icon: ArchiveBoxIcon },
         { name: "Orders", href: "/orders", icon: ShoppingBagIcon },
         { name: "Delivery Team", href: "/delivery-team", icon: TruckIcon },
@@ -488,6 +490,14 @@ function App() {
             element={
               <ProtectedRoute>
                 <ProductManagement />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/select-products"
+            element={
+              <ProtectedRoute>
+                <SelectProducts />
               </ProtectedRoute>
             }
           />
