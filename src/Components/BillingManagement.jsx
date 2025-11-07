@@ -14,16 +14,65 @@ import {
   PhoneIcon,
   ReceiptPercentIcon,
   CheckCircleIcon,
-  ExclamationTriangleIcon
+  ExclamationTriangleIcon,
+  ChevronDownIcon,
 } from '@heroicons/react/24/outline';
 import { getVendorProducts, createBill, getBills } from '../utils/api';
 import { printBill } from './PrintBill';
+
+// Custom Dropdown Component
+const CustomDropdown = ({ value, onChange, options, placeholder = "Select...", className = "" }) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const selectedOption = options.find(opt => opt.value === value);
+
+  return (
+    <div className="relative">
+      <button
+        type="button"
+        onClick={() => setIsOpen(!isOpen)}
+        className={`w-full px-2.5 py-1.5 text-xs border border-gray-300 rounded-lg bg-white text-left flex items-center justify-between focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${className}`}
+      >
+        <span className={selectedOption ? 'text-gray-900' : 'text-gray-400'}>
+          {selectedOption ? selectedOption.label : placeholder}
+        </span>
+        <ChevronDownIcon className={`h-3 w-3 text-gray-400 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+      </button>
+      
+      {isOpen && (
+        <>
+          <div 
+            className="fixed inset-0 z-10" 
+            onClick={() => setIsOpen(false)}
+          />
+          <div className="absolute z-20 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-auto">
+            {options.map((option) => (
+              <button
+                key={option.value}
+                type="button"
+                onClick={() => {
+                  onChange(option.value);
+                  setIsOpen(false);
+                }}
+                className={`w-full px-2.5 py-1.5 text-xs text-left hover:bg-blue-50 transition-colors ${
+                  value === option.value ? 'bg-blue-50 text-blue-700 font-medium' : 'text-gray-700'
+                }`}
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>
+        </>
+      )}
+    </div>
+  );
+};
 
 const BillingManagement = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState('all');
   const [cart, setCart] = useState([]);
   const [customerInfo, setCustomerInfo] = useState({
     name: '',
@@ -305,11 +354,18 @@ const BillingManagement = () => {
     }
   };
 
-  const filteredProducts = products.filter(product =>
-    product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    product.sku.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    product.category.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredProducts = products.filter(product => {
+    const matchesSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      product.sku.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      product.category.toLowerCase().includes(searchTerm.toLowerCase());
+    
+    const matchesCategory = selectedCategory === 'all' || product.category === selectedCategory;
+    
+    return matchesSearch && matchesCategory;
+  });
+
+  // Get unique categories from products
+  const categories = ['all', ...new Set(products.map(p => p.category))].filter(Boolean);
 
   if (loading) {
     return (
@@ -393,25 +449,100 @@ const BillingManagement = () => {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
           {/* Left Side - Product Selection */}
           <div className="lg:col-span-2 space-y-3">
-            {/* Search */}
+            {/* Search and Filter */}
             <div className="bg-white rounded-lg border border-gray-200 p-3">
-              <div className="relative">
-                <MagnifyingGlassIcon className="absolute left-2.5 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                <input
-                  type="text"
-                  placeholder="Search products by name, SKU, or category..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full pl-9 pr-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                />
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                {/* Search Input */}
+                <div className="relative">
+                  <MagnifyingGlassIcon className="absolute left-2.5 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                  <input
+                    type="text"
+                    placeholder="Search products..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="w-full pl-9 pr-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  />
+                </div>
+
+                {/* Category Filter */}
+                <div className="relative">
+                  <CustomDropdown
+                    value={selectedCategory}
+                    onChange={setSelectedCategory}
+                    options={categories.map(cat => ({
+                      value: cat,
+                      label: cat === 'all' ? 'All Categories' : cat
+                    }))}
+                    placeholder="Select Category"
+                  />
+                </div>
               </div>
+              
+              {/* Active Filters Display */}
+              {(searchTerm || selectedCategory !== 'all') && (
+                <div className="flex items-center gap-2 mt-2 pt-2 border-t border-gray-200">
+                  <span className="text-[10px] text-gray-500">Active filters:</span>
+                  {searchTerm && (
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-blue-50 text-blue-700 rounded text-[10px]">
+                      Search: "{searchTerm}"
+                      <button
+                        onClick={() => setSearchTerm('')}
+                        className="hover:text-blue-900"
+                      >
+                        <XMarkIcon className="h-3 w-3" />
+                      </button>
+                    </span>
+                  )}
+                  {selectedCategory !== 'all' && (
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-green-50 text-green-700 rounded text-[10px]">
+                      Category: {selectedCategory}
+                      <button
+                        onClick={() => setSelectedCategory('all')}
+                        className="hover:text-green-900"
+                      >
+                        <XMarkIcon className="h-3 w-3" />
+                      </button>
+                    </span>
+                  )}
+                  <button
+                    onClick={() => {
+                      setSearchTerm('');
+                      setSelectedCategory('all');
+                    }}
+                    className="text-[10px] text-gray-500 hover:text-gray-700 underline ml-auto"
+                  >
+                    Clear all
+                  </button>
+                </div>
+              )}
             </div>
 
             {/* Products Grid */}
             <div className="bg-white rounded-lg border border-gray-200 p-3">
-              <h3 className="text-xs font-medium text-gray-900 mb-2">Available Products ({filteredProducts.length})</h3>
+              <h3 className="text-xs font-medium text-gray-900 mb-2">
+                Available Products ({filteredProducts.length})
+                {selectedCategory !== 'all' && (
+                  <span className="text-gray-500 font-normal"> in {selectedCategory}</span>
+                )}
+              </h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-[500px] overflow-y-auto">
-                {filteredProducts.map((product) => (
+                {filteredProducts.length === 0 ? (
+                  <div className="col-span-2 text-center py-8">
+                    <p className="text-sm text-gray-500">No products found</p>
+                    {(searchTerm || selectedCategory !== 'all') && (
+                      <button
+                        onClick={() => {
+                          setSearchTerm('');
+                          setSelectedCategory('all');
+                        }}
+                        className="mt-2 text-xs text-blue-600 hover:text-blue-700 underline"
+                      >
+                        Clear filters
+                      </button>
+                    )}
+                  </div>
+                ) : (
+                  filteredProducts.map((product) => (
                   <div
                     key={product.vendorProductId}
                     onClick={() => addToCart(product)}
@@ -440,7 +571,8 @@ const BillingManagement = () => {
                       </div>
                     </div>
                   </div>
-                ))}
+                  ))
+                )}
               </div>
             </div>
           </div>
@@ -530,15 +662,16 @@ const BillingManagement = () => {
               <div className="border-t border-gray-200 pt-2 mb-2">
                 <label className="block text-[10px] font-medium text-gray-700 mb-1.5">Discount</label>
                 <div className="flex gap-1.5">
-                  <select
+                  <CustomDropdown
                     value={discount.type}
-                    onChange={(e) => setDiscount({ ...discount, type: e.target.value })}
-                    className="px-2 py-1 text-xs border border-gray-300 rounded"
-                  >
-                    <option value="none">None</option>
-                    <option value="percentage">%</option>
-                    <option value="fixed">₹</option>
-                  </select>
+                    onChange={(value) => setDiscount({ ...discount, type: value })}
+                    options={[
+                      { value: 'none', label: 'None' },
+                      { value: 'percentage', label: '%' },
+                      { value: 'fixed', label: '₹' }
+                    ]}
+                    className="w-24"
+                  />
                   {discount.type !== 'none' && (
                     <input
                       type="number"
@@ -554,22 +687,22 @@ const BillingManagement = () => {
               {/* Payment Method */}
               <div className="border-t border-gray-200 pt-2 mb-2">
                 <label className="block text-[10px] font-medium text-gray-700 mb-1.5">Payment Method</label>
-                <select
+                <CustomDropdown
                   value={paymentMethod}
-                  onChange={(e) => {
-                    setPaymentMethod(e.target.value);
-                    if (e.target.value === 'split' && splitPayments.length === 0) {
+                  onChange={(value) => {
+                    setPaymentMethod(value);
+                    if (value === 'split' && splitPayments.length === 0) {
                       setSplitPayments([{ method: 'cash', amount: 0 }]);
                     }
                   }}
-                  className="w-full px-2.5 py-1.5 text-xs border border-gray-300 rounded"
-                >
-                  <option value="cash">Cash</option>
-                  <option value="card">Card</option>
-                  <option value="upi">UPI</option>
-                  <option value="online">Online</option>
-                  <option value="split">Split Payment</option>
-                </select>
+                  options={[
+                    { value: 'cash', label: 'Cash' },
+                    { value: 'card', label: 'Card' },
+                    { value: 'upi', label: 'UPI' },
+                    { value: 'online', label: 'Online' },
+                    { value: 'split', label: 'Split Payment' }
+                  ]}
+                />
               </div>
 
               {/* Split Payment Details */}
@@ -587,16 +720,17 @@ const BillingManagement = () => {
                   <div className="space-y-1.5">
                     {splitPayments.map((payment, index) => (
                       <div key={index} className="flex gap-1.5 items-center">
-                        <select
+                        <CustomDropdown
                           value={payment.method}
-                          onChange={(e) => updateSplitPayment(index, 'method', e.target.value)}
-                          className="flex-1 px-1.5 py-1 text-[10px] border border-gray-300 rounded"
-                        >
-                          <option value="cash">Cash</option>
-                          <option value="card">Card</option>
-                          <option value="upi">UPI</option>
-                          <option value="online">Online</option>
-                        </select>
+                          onChange={(value) => updateSplitPayment(index, 'method', value)}
+                          options={[
+                            { value: 'cash', label: 'Cash' },
+                            { value: 'card', label: 'Card' },
+                            { value: 'upi', label: 'UPI' },
+                            { value: 'online', label: 'Online' }
+                          ]}
+                          className="flex-1"
+                        />
                         <input
                           type="number"
                           value={payment.amount || ''}
