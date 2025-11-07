@@ -16,9 +16,36 @@ import {
   CheckCircleIcon,
   ExclamationTriangleIcon,
   ChevronDownIcon,
+  ChartBarIcon,
 } from '@heroicons/react/24/outline';
 import { getVendorProducts, createBill, getBills } from '../utils/api';
 import { printBill } from './PrintBill';
+import {
+  LineChart,
+  Line,
+  BarChart,
+  Bar,
+  PieChart,
+  Pie,
+  Cell,
+  AreaChart,
+  Area,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  ResponsiveContainer,
+  RadarChart,
+  PolarGrid,
+  PolarAngleAxis,
+  PolarRadiusAxis,
+  Radar,
+} from 'recharts';
+import { Box, Paper, Grid } from '@mui/material';
+
+// Chart color palette
+const COLORS = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899', '#14B8A6', '#F97316'];
 
 // Custom Dropdown Component
 const CustomDropdown = ({ value, onChange, options, placeholder = "Select...", className = "" }) => {
@@ -90,7 +117,9 @@ const BillingManagement = () => {
   const [bills, setBills] = useState([]);
   const [showBillHistory, setShowBillHistory] = useState(false);
   const [selectedBill, setSelectedBill] = useState(null);
-  const [activeTab, setActiveTab] = useState('billing'); // 'billing' or 'history'
+  const [activeTab, setActiveTab] = useState('billing'); // 'billing' or 'history' or 'analytics'
+  const [analyticsData, setAnalyticsData] = useState(null);
+  const [analyticsLoading, setAnalyticsLoading] = useState(false);
 
   useEffect(() => {
     // Check URL params for tab
@@ -99,6 +128,9 @@ const BillingManagement = () => {
       setActiveTab('history');
     } else if (tabParam === 'new') {
       setActiveTab('billing');
+    } else if (tabParam === 'analytics') {
+      setActiveTab('analytics');
+      calculateAnalytics();
     }
   }, [searchParams]);
 
@@ -174,6 +206,148 @@ const BillingManagement = () => {
       }
     } catch (err) {
       console.error('Error fetching bills:', err);
+    }
+  };
+
+  const calculateAnalytics = () => {
+    setAnalyticsLoading(true);
+    
+    try {
+      // Total revenue and bills
+      const totalRevenue = bills.reduce((sum, bill) => sum + bill.total, 0);
+      const totalBills = bills.length;
+      const averageBillValue = totalBills > 0 ? totalRevenue / totalBills : 0;
+
+      // Total items sold
+      const totalItemsSold = bills.reduce((sum, bill) => 
+        sum + bill.items.reduce((itemSum, item) => itemSum + item.quantity, 0), 0
+      );
+
+      // Payment method breakdown
+      const paymentMethods = {};
+      bills.forEach(bill => {
+        const method = bill.paymentMethod;
+        if (!paymentMethods[method]) {
+          paymentMethods[method] = { count: 0, revenue: 0 };
+        }
+        paymentMethods[method].count++;
+        paymentMethods[method].revenue += bill.total;
+      });
+
+      // Product sales analysis
+      const productSales = {};
+      bills.forEach(bill => {
+        bill.items.forEach(item => {
+          const key = item.vendorProductId || item.productName;
+          if (!productSales[key]) {
+            productSales[key] = {
+              name: item.productName,
+              sku: item.sku,
+              quantitySold: 0,
+              revenue: 0,
+              timesOrdered: 0
+            };
+          }
+          productSales[key].quantitySold += item.quantity;
+          productSales[key].revenue += item.total;
+          productSales[key].timesOrdered++;
+        });
+      });
+
+      // Sort products by revenue
+      const topProducts = Object.values(productSales)
+        .sort((a, b) => b.revenue - a.revenue)
+        .slice(0, 10);
+
+      // Discount analysis
+      const totalDiscount = bills.reduce((sum, bill) => sum + (bill.discount?.amount || 0), 0);
+      const billsWithDiscount = bills.filter(bill => bill.discount?.amount > 0).length;
+
+      // Time-based analysis
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      
+      const todayBills = bills.filter(bill => new Date(bill.createdAt) >= today);
+      const todayRevenue = todayBills.reduce((sum, bill) => sum + bill.total, 0);
+
+      const thisWeekStart = new Date(today);
+      thisWeekStart.setDate(today.getDate() - 7);
+      const weekBills = bills.filter(bill => new Date(bill.createdAt) >= thisWeekStart);
+      const weekRevenue = weekBills.reduce((sum, bill) => sum + bill.total, 0);
+
+      const thisMonthStart = new Date(today.getFullYear(), today.getMonth(), 1);
+      const monthBills = bills.filter(bill => new Date(bill.createdAt) >= thisMonthStart);
+      const monthRevenue = monthBills.reduce((sum, bill) => sum + bill.total, 0);
+
+      // Daily sales chart data (last 7 days)
+      const dailySales = [];
+      for (let i = 6; i >= 0; i--) {
+        const date = new Date(today);
+        date.setDate(today.getDate() - i);
+        date.setHours(0, 0, 0, 0);
+        
+        const nextDate = new Date(date);
+        nextDate.setDate(date.getDate() + 1);
+        
+        const dayBills = bills.filter(bill => {
+          const billDate = new Date(bill.createdAt);
+          return billDate >= date && billDate < nextDate;
+        });
+        
+        dailySales.push({
+          date: date.toLocaleDateString('en-IN', { day: '2-digit', month: 'short' }),
+          revenue: dayBills.reduce((sum, bill) => sum + bill.total, 0),
+          bills: dayBills.length
+        });
+      }
+
+      // Customer analysis
+      const customerData = {};
+      bills.forEach(bill => {
+        const phone = bill.customer.phone || 'walk-in';
+        if (!customerData[phone]) {
+          customerData[phone] = {
+            name: bill.customer.name,
+            phone: bill.customer.phone,
+            totalOrders: 0,
+            totalSpent: 0
+          };
+        }
+        customerData[phone].totalOrders++;
+        customerData[phone].totalSpent += bill.total;
+      });
+
+      const topCustomers = Object.values(customerData)
+        .sort((a, b) => b.totalSpent - a.totalSpent)
+        .slice(0, 5);
+
+      setAnalyticsData({
+        overview: {
+          totalRevenue,
+          totalBills,
+          averageBillValue,
+          totalItemsSold,
+          totalDiscount,
+          billsWithDiscount
+        },
+        timeBased: {
+          todayRevenue,
+          todayBills: todayBills.length,
+          weekRevenue,
+          weekBills: weekBills.length,
+          monthRevenue,
+          monthBills: monthBills.length
+        },
+        paymentMethods,
+        topProducts,
+        dailySales,
+        topCustomers
+      });
+    } catch (error) {
+      console.error('Error calculating analytics:', error);
+      setError('Failed to calculate analytics');
+    } finally {
+      setAnalyticsLoading(false);
     }
   };
 
@@ -441,6 +615,21 @@ const BillingManagement = () => {
           >
             <DocumentTextIcon className="h-3 w-3 inline mr-1" />
             Bill History
+          </button>
+          <button
+            onClick={() => {
+              setActiveTab('analytics');
+              setSearchParams({ tab: 'analytics' });
+              calculateAnalytics();
+            }}
+            className={`px-3 py-1.5 text-xs font-medium rounded-lg ${
+              activeTab === 'analytics'
+                ? 'bg-blue-600 text-white'
+                : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
+            }`}
+          >
+            <ChartBarIcon className="h-3 w-3 inline mr-1" />
+            Analytics
           </button>
         </div>
       </div>
@@ -803,7 +992,7 @@ const BillingManagement = () => {
             </div>
           </div>
         </div>
-      ) : (
+      ) : activeTab === 'history' ? (
         /* Bill History Tab */
         <div className="bg-white rounded-lg border border-gray-200">
           <div className="p-3 border-b border-gray-200">
@@ -874,7 +1063,263 @@ const BillingManagement = () => {
             </table>
           </div>
         </div>
-      )}
+      ) : activeTab === 'analytics' ? (
+        /* Analytics Tab */
+        analyticsLoading ? (
+          <div className="flex items-center justify-center h-64">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+          </div>
+        ) : analyticsData ? (
+          <div className="space-y-3">
+            {/* Overview Cards */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+              <div className="bg-white rounded-lg border border-gray-200 p-3">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-[10px] text-gray-500 uppercase">Total Revenue</p>
+                    <p className="text-lg font-bold text-gray-900">₹{analyticsData.overview.totalRevenue.toFixed(2)}</p>
+                    <p className="text-[10px] text-gray-500 mt-0.5">{analyticsData.overview.totalBills} bills</p>
+                  </div>
+                  <CurrencyRupeeIcon className="h-8 w-8 text-green-600" />
+                </div>
+              </div>
+
+              <div className="bg-white rounded-lg border border-gray-200 p-3">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-[10px] text-gray-500 uppercase">Avg Bill Value</p>
+                    <p className="text-lg font-bold text-gray-900">₹{analyticsData.overview.averageBillValue.toFixed(2)}</p>
+                    <p className="text-[10px] text-gray-500 mt-0.5">{analyticsData.overview.totalItemsSold} items sold</p>
+                  </div>
+                  <ShoppingCartIcon className="h-8 w-8 text-blue-600" />
+                </div>
+              </div>
+
+              <div className="bg-white rounded-lg border border-gray-200 p-3">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-[10px] text-gray-500 uppercase">Today's Revenue</p>
+                    <p className="text-lg font-bold text-gray-900">₹{analyticsData.timeBased.todayRevenue.toFixed(2)}</p>
+                    <p className="text-[10px] text-gray-500 mt-0.5">{analyticsData.timeBased.todayBills} bills</p>
+                  </div>
+                  <DocumentTextIcon className="h-8 w-8 text-purple-600" />
+                </div>
+              </div>
+
+              <div className="bg-white rounded-lg border border-gray-200 p-3">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-[10px] text-gray-500 uppercase">Total Discount</p>
+                    <p className="text-lg font-bold text-gray-900">₹{analyticsData.overview.totalDiscount.toFixed(2)}</p>
+                    <p className="text-[10px] text-gray-500 mt-0.5">{analyticsData.overview.billsWithDiscount} bills</p>
+                  </div>
+                  <ReceiptPercentIcon className="h-8 w-8 text-orange-600" />
+                </div>
+              </div>
+            </div>
+
+            {/* Time Period Stats */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
+              <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg border border-blue-200 p-3">
+                <h3 className="text-xs font-medium text-blue-900 mb-2">This Week</h3>
+                <p className="text-xl font-bold text-blue-900">₹{analyticsData.timeBased.weekRevenue.toFixed(2)}</p>
+                <p className="text-[10px] text-blue-700 mt-0.5">{analyticsData.timeBased.weekBills} bills</p>
+              </div>
+
+              <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-lg border border-green-200 p-3">
+                <h3 className="text-xs font-medium text-green-900 mb-2">This Month</h3>
+                <p className="text-xl font-bold text-green-900">₹{analyticsData.timeBased.monthRevenue.toFixed(2)}</p>
+                <p className="text-[10px] text-green-700 mt-0.5">{analyticsData.timeBased.monthBills} bills</p>
+              </div>
+
+              <div className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-lg border border-purple-200 p-3">
+                <h3 className="text-xs font-medium text-purple-900 mb-2">All Time</h3>
+                <p className="text-xl font-bold text-purple-900">₹{analyticsData.overview.totalRevenue.toFixed(2)}</p>
+                <p className="text-[10px] text-purple-700 mt-0.5">{analyticsData.overview.totalBills} bills</p>
+              </div>
+            </div>
+
+            {/* Advanced Charts Grid - 2 columns */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              {/* Revenue Trend Chart - Area Chart */}
+              <div className="bg-white rounded-lg border border-gray-200 p-4">
+                <h3 className="text-sm font-semibold text-gray-900 mb-4">Revenue Trend (Last 7 Days)</h3>
+              <ResponsiveContainer width="100%" height={280}>
+                <AreaChart data={analyticsData.dailySales}>
+                  <defs>
+                    <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#3B82F6" stopOpacity={0.8}/>
+                      <stop offset="95%" stopColor="#3B82F6" stopOpacity={0}/>
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
+                  <XAxis dataKey="date" tick={{ fontSize: 11 }} stroke="#6B7280" />
+                  <YAxis tick={{ fontSize: 11 }} stroke="#6B7280" />
+                  <Tooltip 
+                    contentStyle={{ backgroundColor: '#fff', border: '1px solid #E5E7EB', borderRadius: '8px', fontSize: '12px' }}
+                    formatter={(value) => [`₹${value.toFixed(2)}`, 'Revenue']}
+                  />
+                  <Area type="monotone" dataKey="revenue" stroke="#3B82F6" fillOpacity={1} fill="url(#colorRevenue)" strokeWidth={2} />
+                </AreaChart>
+              </ResponsiveContainer>
+            </div>
+
+            {/* Bills Count Chart - Bar Chart */}
+            <div className="bg-white rounded-lg border border-gray-200 p-4">
+              <h3 className="text-sm font-semibold text-gray-900 mb-4">Bills Generated (Last 7 Days)</h3>
+              <ResponsiveContainer width="100%" height={280}>
+                <BarChart data={analyticsData.dailySales}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
+                  <XAxis dataKey="date" tick={{ fontSize: 11 }} stroke="#6B7280" />
+                  <YAxis tick={{ fontSize: 11 }} stroke="#6B7280" />
+                  <Tooltip 
+                    contentStyle={{ backgroundColor: '#fff', border: '1px solid #E5E7EB', borderRadius: '8px', fontSize: '12px' }}
+                    formatter={(value) => [value, 'Bills']}
+                  />
+                  <Bar dataKey="bills" fill="#10B981" radius={[8, 8, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+
+            {/* Payment Methods Distribution - Pie Chart */}
+            <div className="bg-white rounded-lg border border-gray-200 p-4">
+              <h3 className="text-sm font-semibold text-gray-900 mb-4">Payment Methods Distribution</h3>
+              <ResponsiveContainer width="100%" height={280}>
+                <PieChart>
+                  <Pie
+                    data={Object.entries(analyticsData.paymentMethods).map(([method, data]) => ({
+                      name: method.charAt(0).toUpperCase() + method.slice(1),
+                      value: data.revenue,
+                      count: data.count
+                    }))}
+                    cx="50%"
+                    cy="50%"
+                    labelLine={false}
+                    label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                    outerRadius={80}
+                    fill="#8884d8"
+                    dataKey="value"
+                  >
+                    {Object.entries(analyticsData.paymentMethods).map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                    ))}
+                  </Pie>
+                  <Tooltip 
+                    contentStyle={{ backgroundColor: '#fff', border: '1px solid #E5E7EB', borderRadius: '8px', fontSize: '12px' }}
+                    formatter={(value, name, props) => [`₹${value.toFixed(2)} (${props.payload.count} bills)`, name]}
+                  />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+
+            {/* Revenue vs Bills Comparison - Dual Axis Chart */}
+            <div className="bg-white rounded-lg border border-gray-200 p-4">
+              <h3 className="text-sm font-semibold text-gray-900 mb-4">Revenue vs Bills Comparison</h3>
+              <ResponsiveContainer width="100%" height={280}>
+                <LineChart data={analyticsData.dailySales}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
+                  <XAxis dataKey="date" tick={{ fontSize: 11 }} stroke="#6B7280" />
+                  <YAxis yAxisId="left" tick={{ fontSize: 11 }} stroke="#6B7280" />
+                  <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 11 }} stroke="#6B7280" />
+                  <Tooltip 
+                    contentStyle={{ backgroundColor: '#fff', border: '1px solid #E5E7EB', borderRadius: '8px', fontSize: '12px' }}
+                  />
+                  <Legend wrapperStyle={{ fontSize: '12px' }} />
+                  <Line yAxisId="left" type="monotone" dataKey="revenue" stroke="#3B82F6" strokeWidth={2} name="Revenue (₹)" dot={{ fill: '#3B82F6', r: 4 }} />
+                  <Line yAxisId="right" type="monotone" dataKey="bills" stroke="#10B981" strokeWidth={2} name="Bills Count" dot={{ fill: '#10B981', r: 4 }} />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+
+            {/* Top Products Performance - Horizontal Bar Chart */}
+            <div className="bg-white rounded-lg border border-gray-200 p-4">
+              <h3 className="text-sm font-semibold text-gray-900 mb-4">Top 10 Products by Revenue</h3>
+              <ResponsiveContainer width="100%" height={400}>
+                <BarChart 
+                  data={analyticsData.topProducts} 
+                  layout="vertical"
+                  margin={{ top: 5, right: 30, left: 120, bottom: 5 }}
+                >
+                  <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
+                  <XAxis type="number" tick={{ fontSize: 11 }} stroke="#6B7280" />
+                  <YAxis dataKey="name" type="category" tick={{ fontSize: 10 }} stroke="#6B7280" width={115} />
+                  <Tooltip 
+                    contentStyle={{ backgroundColor: '#fff', border: '1px solid #E5E7EB', borderRadius: '8px', fontSize: '12px' }}
+                    formatter={(value, name) => {
+                      if (name === 'revenue') return [`₹${value.toFixed(2)}`, 'Revenue'];
+                      return [value, name];
+                    }}
+                  />
+                  <Legend wrapperStyle={{ fontSize: '12px' }} />
+                  <Bar dataKey="revenue" fill="#8B5CF6" radius={[0, 4, 4, 0]} name="Revenue (₹)" />
+                  <Bar dataKey="quantitySold" fill="#F59E0B" radius={[0, 4, 4, 0]} name="Quantity Sold" />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+
+            {/* Product Performance Radar */}
+            <div className="bg-white rounded-lg border border-gray-200 p-4">
+              <h3 className="text-sm font-semibold text-gray-900 mb-4">Top 5 Products Performance</h3>
+              <ResponsiveContainer width="100%" height={350}>
+                <RadarChart data={analyticsData.topProducts.slice(0, 5).map(p => ({
+                  product: p.name.substring(0, 15) + (p.name.length > 15 ? '...' : ''),
+                  revenue: p.revenue,
+                  quantity: p.quantitySold,
+                  orders: p.timesOrdered * 10 // Scale for visibility
+                }))}>
+                  <PolarGrid stroke="#E5E7EB" />
+                  <PolarAngleAxis dataKey="product" tick={{ fontSize: 10 }} />
+                  <PolarRadiusAxis tick={{ fontSize: 10 }} />
+                  <Radar name="Revenue" dataKey="revenue" stroke="#3B82F6" fill="#3B82F6" fillOpacity={0.6} />
+                  <Radar name="Quantity" dataKey="quantity" stroke="#10B981" fill="#10B981" fillOpacity={0.6} />
+                  <Radar name="Orders (x10)" dataKey="orders" stroke="#F59E0B" fill="#F59E0B" fillOpacity={0.6} />
+                  <Tooltip 
+                    contentStyle={{ backgroundColor: '#fff', border: '1px solid #E5E7EB', borderRadius: '8px', fontSize: '12px' }}
+                  />
+                  <Legend wrapperStyle={{ fontSize: '12px' }} />
+                </RadarChart>
+              </ResponsiveContainer>
+            </div>
+            </div>
+
+            {/* Top Customers */}
+            <div className="bg-white rounded-lg border border-gray-200 p-3">
+              <h3 className="text-xs font-medium text-gray-900 mb-3">Top Customers</h3>
+              <div className="space-y-2">
+                {analyticsData.topCustomers.length === 0 ? (
+                  <p className="text-xs text-gray-500 text-center py-4">No customer data yet</p>
+                ) : (
+                  analyticsData.topCustomers.map((customer, index) => (
+                    <div key={index} className="flex items-center justify-between p-2 bg-gray-50 rounded">
+                      <div className="flex items-center gap-2 flex-1 min-w-0">
+                        <div className="h-8 w-8 rounded-full bg-blue-600 flex items-center justify-center shrink-0">
+                          <span className="text-white text-xs font-medium">
+                            {customer.name.charAt(0).toUpperCase()}
+                          </span>
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-xs font-medium text-gray-900 truncate">{customer.name}</p>
+                          <p className="text-[10px] text-gray-500">{customer.phone || 'No phone'}</p>
+                        </div>
+                      </div>
+                      <div className="text-right ml-2">
+                        <p className="text-xs font-semibold text-gray-900">₹{customer.totalSpent.toFixed(2)}</p>
+                        <p className="text-[10px] text-gray-500">{customer.totalOrders} orders</p>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div className="bg-white rounded-lg border border-gray-200 p-8 text-center">
+            <ChartBarIcon className="h-12 w-12 text-gray-400 mx-auto mb-3" />
+            <p className="text-sm text-gray-500">No analytics data available</p>
+            <p className="text-xs text-gray-400 mt-1">Generate some bills to see analytics</p>
+          </div>
+        )
+      ) : null}
     </div>
   );
 };
