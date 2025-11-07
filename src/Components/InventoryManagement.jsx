@@ -38,6 +38,7 @@ const InventoryManagement = () => {
   const [bulkOperation, setBulkOperation] = useState('add');
   const [bulkQuantity, setBulkQuantity] = useState('');
   const [bulkUpdating, setBulkUpdating] = useState(false);
+  const [individualQuantities, setIndividualQuantities] = useState({});
   const [categories, setCategories] = useState([]);
   const [subcategories, setSubcategories] = useState([]);
   const [addingProduct, setAddingProduct] = useState(false);
@@ -55,7 +56,7 @@ const InventoryManagement = () => {
     lowStockThreshold: 10,
     images: []
   });
-  
+
   const categoryDropdownRef = useRef(null);
   const fileInputRef = useRef(null);
 
@@ -140,18 +141,20 @@ const InventoryManagement = () => {
         return;
       }
 
-      const quantity = parseInt(bulkQuantity);
-      if (!quantity || quantity <= 0) {
-        setError('Please enter a valid quantity');
-        return;
-      }
+      // Prepare updates array with individual quantities
+      const updates = Array.from(selectedProducts).map(vendorProductId => {
+        const quantity = parseInt(individualQuantities[vendorProductId] || bulkQuantity);
 
-      // Prepare updates array
-      const updates = Array.from(selectedProducts).map(vendorProductId => ({
-        vendorProductId,
-        operation: bulkOperation,
-        quantity
-      }));
+        if (!quantity || quantity <= 0) {
+          throw new Error('Please enter valid quantities for all products');
+        }
+
+        return {
+          vendorProductId,
+          operation: bulkOperation,
+          quantity
+        };
+      });
 
       const response = await bulkUpdateVendorProductStock(updates);
 
@@ -162,6 +165,7 @@ const InventoryManagement = () => {
         setShowBulkUpdateModal(false);
         setSelectedProducts(new Set());
         setBulkQuantity('');
+        setIndividualQuantities({});
         fetchInventory(true);
       } else {
         setError(response.message || 'Some updates failed');
@@ -180,9 +184,9 @@ const InventoryManagement = () => {
       setError(null);
 
       // Validation
-      if (!newProduct.name || !newProduct.description || !newProduct.category || 
-          !newProduct.subcategory || !newProduct.brand || !newProduct.basePrice || 
-          !newProduct.weight || !newProduct.unit) {
+      if (!newProduct.name || !newProduct.description || !newProduct.category ||
+        !newProduct.subcategory || !newProduct.brand || !newProduct.basePrice ||
+        !newProduct.weight || !newProduct.unit) {
         setError('Please fill all required fields');
         return;
       }
@@ -204,7 +208,7 @@ const InventoryManagement = () => {
       formData.append('unit', newProduct.unit);
       formData.append('initialStock', newProduct.initialStock);
       formData.append('lowStockThreshold', newProduct.lowStockThreshold);
-      
+
       // Add images
       newProduct.images.forEach((image, index) => {
         formData.append('images', image);
@@ -212,7 +216,7 @@ const InventoryManagement = () => {
       });
 
       const response = await createVendorProduct(formData);
-      
+
       if (response.success) {
         setSuccessMessage('Product added successfully to your inventory! You can now manage its stock.');
         setShowAddProductModal(false);
@@ -248,40 +252,40 @@ const InventoryManagement = () => {
         setLoading(true);
       }
       setError(null);
-      
+
       // For 'lalaji' tab, get only Lalaji Store products (where vendor selected them)
       // For 'own' tab, get vendor's own created products
-      const response = await getVendorProducts({ 
-        sourceFilter: activeTab === 'lalaji' ? 'selected' : 'own' 
+      const response = await getVendorProducts({
+        sourceFilter: activeTab === 'lalaji' ? 'selected' : 'own'
       });
-      
+
       console.log('Vendor Products Response:', response);
-      
+
       // Handle both response formats: direct array or response.data
       const productsData = Array.isArray(response) ? response : (response.success && response.data ? response.data : []);
-      
+
       if (productsData && productsData.length > 0) {
         // Transform vendor products to inventory format
         const inventoryData = productsData.map(vp => {
           const product = vp.product;
           const currentStock = vp.inventory?.stock || 0;
           const minThreshold = vp.inventory?.lowStockThreshold || 10;
-          
+
           // Get primary image
-          const primaryImage = product.images?.find(img => img.isPrimary)?.url || 
-                              product.images?.[0]?.url || '';
-          
+          const primaryImage = product.images?.find(img => img.isPrimary)?.url ||
+            product.images?.[0]?.url || '';
+
           // Calculate unit price from analytics or product pricing
-          const unitPrice = vp.pricing?.sellingPrice || 
-                           product.pricing?.sellingPrice || 
-                           (vp.analytics?.totalRevenue && vp.analytics?.totalSold ? 
-                             Math.round(vp.analytics.totalRevenue / vp.analytics.totalSold) : 0);
-          
+          const unitPrice = vp.pricing?.sellingPrice ||
+            product.pricing?.sellingPrice ||
+            (vp.analytics?.totalRevenue && vp.analytics?.totalSold ?
+              Math.round(vp.analytics.totalRevenue / vp.analytics.totalSold) : 0);
+
           // Format weight display
-          const weightDisplay = product.weight?.value && product.weight?.unit 
+          const weightDisplay = product.weight?.value && product.weight?.unit
             ? `${product.weight.value}${product.weight.unit}`
             : (product.weight && product.unit ? `${product.weight}${product.unit}` : '');
-          
+
           return {
             id: vp._id,
             vendorProductId: vp._id,
@@ -297,9 +301,9 @@ const InventoryManagement = () => {
             unitPrice: unitPrice,
             totalValue: currentStock * unitPrice,
             lastRestocked: vp.inventory?.lastRestocked || vp.updatedAt || vp.createdAt,
-            status: vp.status === 'out_of_stock' ? 'out_of_stock' : 
-                   (currentStock === 0 ? 'out_of_stock' :
-                   currentStock <= minThreshold ? 'low_stock' : 'in_stock'),
+            status: vp.status === 'out_of_stock' ? 'out_of_stock' :
+              (currentStock === 0 ? 'out_of_stock' :
+                currentStock <= minThreshold ? 'low_stock' : 'in_stock'),
             location: vp.inventory?.location || 'Warehouse',
             supplier: product.supplier || product.brand || 'N/A',
             image: primaryImage,
@@ -312,7 +316,7 @@ const InventoryManagement = () => {
             approvalStatus: product.approvalStatus?.status || 'pending'
           };
         });
-        
+
         console.log('Transformed Inventory Data:', inventoryData);
         setInventory(inventoryData);
       } else {
@@ -354,21 +358,21 @@ const InventoryManagement = () => {
       if (response.success) {
         // Update local state with new stock
         const newStock = response.data.newStock;
-        
-        setInventory(inventory.map(item => 
-          item.id === product.id 
-            ? { 
-                ...item, 
-                currentStock: newStock,
-                totalValue: newStock * item.unitPrice,
-                status: getStockStatus(newStock, item.minThreshold)
-              }
+
+        setInventory(inventory.map(item =>
+          item.id === product.id
+            ? {
+              ...item,
+              currentStock: newStock,
+              totalValue: newStock * item.unitPrice,
+              status: getStockStatus(newStock, item.minThreshold)
+            }
             : item
         ));
 
         setEditingProductId(null);
         setEditValues({ quantity: '', operation: 'add' });
-        
+
         // Show success message
         setSuccessMessage(`Stock updated successfully! New stock: ${newStock}`);
         setTimeout(() => setSuccessMessage(null), 5000);
@@ -433,7 +437,7 @@ const InventoryManagement = () => {
 
   const filteredInventory = inventory.filter(item => {
     const matchesSearch = item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         item.sku.toLowerCase().includes(searchTerm.toLowerCase());
+      item.sku.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesCategory = filterCategory === 'all' || item.category === filterCategory;
     const matchesStock = filterStock === 'all' || item.status === filterStock;
     return matchesSearch && matchesCategory && matchesStock;
@@ -464,7 +468,7 @@ const InventoryManagement = () => {
             <div className="flex items-center">
               <CheckCircleIcon className="h-5 w-5 text-green-600 mr-3" />
               <div className="text-sm text-green-700">{successMessage}</div>
-              <button 
+              <button
                 onClick={() => setSuccessMessage(null)}
                 className="ml-auto text-green-600 hover:text-green-800"
               >
@@ -483,7 +487,7 @@ const InventoryManagement = () => {
             <div className="flex items-center">
               <ExclamationTriangleIcon className="h-5 w-5 text-red-600 mr-3" />
               <div className="text-sm text-red-700">{error}</div>
-              <button 
+              <button
                 onClick={() => setError(null)}
                 className="ml-auto text-red-600 hover:text-red-800"
               >
@@ -510,15 +514,15 @@ const InventoryManagement = () => {
           )}
         </div>
         <div className="mt-3 sm:mt-0 flex space-x-2">
-          <button 
+          <button
             onClick={() => fetchInventory(true)}
             disabled={refreshing}
             className="inline-flex items-center rounded-lg bg-white border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            <svg 
-              className={`h-3.5 w-3.5 mr-1.5 ${refreshing ? 'animate-spin' : ''}`} 
-              fill="none" 
-              viewBox="0 0 24 24" 
+            <svg
+              className={`h-3.5 w-3.5 mr-1.5 ${refreshing ? 'animate-spin' : ''}`}
+              fill="none"
+              viewBox="0 0 24 24"
               stroke="currentColor"
             >
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
@@ -526,7 +530,7 @@ const InventoryManagement = () => {
             {refreshing ? 'Refreshing...' : 'Refresh'}
           </button>
           {activeTab === 'own' && (
-            <button 
+            <button
               onClick={() => setShowAddProductModal(true)}
               className="inline-flex items-center rounded-lg bg-green-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-green-500"
             >
@@ -538,21 +542,20 @@ const InventoryManagement = () => {
             Export Report
           </button>
           <div className="relative group">
-            <button 
+            <button
               onClick={() => setShowBulkUpdateModal(true)}
               disabled={selectedProducts.size === 0}
-              className={`inline-flex items-center rounded-lg px-3 py-1.5 text-xs font-medium transition-all ${
-                selectedProducts.size === 0 
-                  ? 'bg-gray-300 text-gray-500 cursor-not-allowed' 
+              className={`inline-flex items-center rounded-lg px-3 py-1.5 text-xs font-medium transition-all ${selectedProducts.size === 0
+                  ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
                   : 'bg-blue-600 text-white hover:bg-blue-500 cursor-pointer'
-              }`}
+                }`}
             >
               <ArchiveBoxIcon className="h-3.5 w-3.5 mr-1.5" />
               Bulk Update {selectedProducts.size > 0 && `(${selectedProducts.size})`}
             </button>
             {selectedProducts.size === 0 && (
-              <div className="hidden group-hover:block absolute bottom-full mb-2 right-0 w-48 bg-gray-900 text-white text-xs rounded py-2 px-3 z-10">
-                ℹ️ Check product boxes below to enable bulk update
+              <div className="hidden group-hover:block absolute top-full mt-2 right-0 w-48 bg-gray-900 text-white text-xs rounded py-2 px-3 z-10">
+                Check product boxes below to enable bulk update
                 <div className="absolute top-full right-4 -mt-1 border-4 border-transparent border-t-gray-900"></div>
               </div>
             )}
@@ -565,11 +568,10 @@ const InventoryManagement = () => {
         <nav className="-mb-px flex space-x-8">
           <button
             onClick={() => setActiveTab('lalaji')}
-            className={`${
-              activeTab === 'lalaji'
+            className={`${activeTab === 'lalaji'
                 ? 'border-blue-500 text-blue-600'
                 : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'
-            } whitespace-nowrap border-b-2 py-3 px-1 text-sm font-medium`}
+              } whitespace-nowrap border-b-2 py-3 px-1 text-sm font-medium`}
           >
             <div className="flex items-center gap-2">
               <CubeIcon className="h-4 w-4" />
@@ -583,11 +585,10 @@ const InventoryManagement = () => {
           </button>
           <button
             onClick={() => setActiveTab('own')}
-            className={`${
-              activeTab === 'own'
+            className={`${activeTab === 'own'
                 ? 'border-green-500 text-green-600'
                 : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'
-            } whitespace-nowrap border-b-2 py-3 px-1 text-sm font-medium`}
+              } whitespace-nowrap border-b-2 py-3 px-1 text-sm font-medium`}
           >
             <div className="flex items-center gap-2">
               <TagIcon className="h-4 w-4" />
@@ -601,15 +602,14 @@ const InventoryManagement = () => {
           </button>
         </nav>
       </div>
-{/* Stats Cards */}
+      {/* Stats Cards */}
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-5">
-        <div 
+        <div
           onClick={() => setFilterStock('all')}
-          className={`bg-white overflow-hidden rounded-lg border-2 cursor-pointer transition-all ${
-            filterStock === 'all' 
-              ? 'border-blue-500 ' 
+          className={`bg-white overflow-hidden rounded-lg border-2 cursor-pointer transition-all ${filterStock === 'all'
+              ? 'border-blue-500 '
               : 'border-gray-200 hover:border-blue-300 hover:'
-          }`}
+            }`}
         >
           <div className="p-3">
             <div className="flex items-center">
@@ -625,13 +625,12 @@ const InventoryManagement = () => {
             </div>
           </div>
         </div>
-        <div 
+        <div
           onClick={() => setFilterStock(filterStock === 'in_stock' ? 'all' : 'in_stock')}
-          className={`bg-white overflow-hidden rounded-lg border-2 cursor-pointer transition-all ${
-            filterStock === 'in_stock' 
-              ? 'border-green-500 ' 
+          className={`bg-white overflow-hidden rounded-lg border-2 cursor-pointer transition-all ${filterStock === 'in_stock'
+              ? 'border-green-500 '
               : 'border-gray-200 hover:border-green-300 hover:'
-          }`}
+            }`}
         >
           <div className="p-3">
             <div className="flex items-center">
@@ -647,13 +646,12 @@ const InventoryManagement = () => {
             </div>
           </div>
         </div>
-        <div 
+        <div
           onClick={() => setFilterStock(filterStock === 'low_stock' ? 'all' : 'low_stock')}
-          className={`bg-white overflow-hidden rounded-lg border-2 cursor-pointer transition-all ${
-            filterStock === 'low_stock' 
-              ? 'border-yellow-500 ' 
+          className={`bg-white overflow-hidden rounded-lg border-2 cursor-pointer transition-all ${filterStock === 'low_stock'
+              ? 'border-yellow-500 '
               : 'border-gray-200 hover:border-yellow-300 hover:'
-          }`}
+            }`}
         >
           <div className="p-3">
             <div className="flex items-center">
@@ -669,13 +667,12 @@ const InventoryManagement = () => {
             </div>
           </div>
         </div>
-        <div 
+        <div
           onClick={() => setFilterStock(filterStock === 'out_of_stock' ? 'all' : 'out_of_stock')}
-          className={`bg-white overflow-hidden rounded-lg border-2 cursor-pointer transition-all ${
-            filterStock === 'out_of_stock' 
-              ? 'border-red-500 ' 
+          className={`bg-white overflow-hidden rounded-lg border-2 cursor-pointer transition-all ${filterStock === 'out_of_stock'
+              ? 'border-red-500 '
               : 'border-gray-200 hover:border-red-300 hover:'
-          }`}
+            }`}
         >
           <div className="p-3">
             <div className="flex items-center">
@@ -748,10 +745,9 @@ const InventoryManagement = () => {
                   {filterCategory === 'all' ? 'All Categories' : filterCategory}
                 </span>
               </div>
-              <ChevronDownIcon 
-                className={`h-4 w-4 text-gray-400 transition-transform ${
-                  categoryDropdownOpen ? 'rotate-180' : ''
-                }`} 
+              <ChevronDownIcon
+                className={`h-4 w-4 text-gray-400 transition-transform ${categoryDropdownOpen ? 'rotate-180' : ''
+                  }`}
               />
             </button>
 
@@ -763,9 +759,8 @@ const InventoryManagement = () => {
                     setFilterCategory('all');
                     setCategoryDropdownOpen(false);
                   }}
-                  className={`px-3 py-2 text-sm cursor-pointer hover:bg-blue-50 ${
-                    filterCategory === 'all' ? 'bg-blue-50 text-blue-700 font-medium' : 'text-gray-700'
-                  }`}
+                  className={`px-3 py-2 text-sm cursor-pointer hover:bg-blue-50 ${filterCategory === 'all' ? 'bg-blue-50 text-blue-700 font-medium' : 'text-gray-700'
+                    }`}
                 >
                   <div className="flex items-center">
                     <TagIcon className="h-4 w-4 mr-2 text-gray-400" />
@@ -779,9 +774,8 @@ const InventoryManagement = () => {
                       setFilterCategory(category);
                       setCategoryDropdownOpen(false);
                     }}
-                    className={`px-3 py-2 text-sm cursor-pointer hover:bg-blue-50 ${
-                      filterCategory === category ? 'bg-blue-50 text-blue-700 font-medium' : 'text-gray-700'
-                    }`}
+                    className={`px-3 py-2 text-sm cursor-pointer hover:bg-blue-50 ${filterCategory === category ? 'bg-blue-50 text-blue-700 font-medium' : 'text-gray-700'
+                      }`}
                   >
                     <div className="flex items-center">
                       <TagIcon className="h-4 w-4 mr-2 text-gray-400" />
@@ -809,7 +803,7 @@ const InventoryManagement = () => {
         </div>
       </div>
 
-      
+
 
       {/* Inventory Table */}
       <div className="bg-white rounded-lg overflow-hidden border border-gray-200">
@@ -855,8 +849,8 @@ const InventoryManagement = () => {
               {filteredInventory.length === 0 ? (
                 <tr>
                   <td colSpan="9" className="px-4 py-8 text-center text-sm text-gray-500">
-                    {searchTerm || filterCategory !== 'all' || filterStock !== 'all' 
-                      ? 'No products match your filters' 
+                    {searchTerm || filterCategory !== 'all' || filterStock !== 'all'
+                      ? 'No products match your filters'
                       : 'No products in inventory. Add products to get started.'}
                   </td>
                 </tr>
@@ -874,8 +868,8 @@ const InventoryManagement = () => {
                     <td className="px-4 py-3 whitespace-nowrap">
                       <div className="flex items-center">
                         {item.image && (
-                          <img 
-                            src={item.image} 
+                          <img
+                            src={item.image}
                             alt={item.name}
                             className="h-10 w-10 rounded object-cover mr-3"
                             onError={(e) => {
@@ -892,101 +886,100 @@ const InventoryManagement = () => {
                         </div>
                       </div>
                     </td>
-                  <td className="px-4 py-3 whitespace-nowrap">
-                    <div className="flex items-center">
-                      <TagIcon className="h-3.5 w-3.5 text-gray-400 mr-1.5" />
-                      <span className="text-xs text-gray-900">{item.category}</span>
-                    </div>
-                  </td>
-                  <td className="px-4 py-3 whitespace-nowrap">
-                    <div className="text-xs font-medium text-gray-900">{item.currentStock}</div>
-                    <div className="text-xs text-gray-500">Min: {item.minThreshold} | Max: {item.maxCapacity}</div>
-                  </td>
-                  <td className="px-4 py-3 whitespace-nowrap">
-                    <div className="w-full bg-gray-200 rounded-full h-1.5">
-                      <div
-                        className={`h-1.5 rounded-full ${
-                          item.status === 'in_stock' ? 'bg-green-500' :
-                          item.status === 'low_stock' ? 'bg-yellow-500' : 'bg-red-500'
-                        }`}
-                        style={{ width: `${getStockPercentage(item.currentStock, item.maxCapacity)}%` }}
-                      ></div>
-                    </div>
-                    <div className="text-xs text-gray-500 mt-0.5">
-                      {getStockPercentage(item.currentStock, item.maxCapacity).toFixed(0)}% capacity
-                    </div>
-                  </td>
-                  <td className="px-4 py-3 whitespace-nowrap">
-                    <div className="flex items-center gap-1">
-                      {getStatusIcon(item.status)}
-                      {getStatusBadge(item.status)}
-                    </div>
-                  </td>
-                  <td className="px-4 py-3 whitespace-nowrap">
-                    <div className="text-xs font-medium text-gray-900">₹{item.totalValue.toLocaleString()}</div>
-                    <div className="text-xs text-gray-500">@₹{item.unitPrice} each</div>
-                  </td>
-                  <td className="px-4 py-3 whitespace-nowrap text-xs text-gray-900">
-                    {formatDate(item.lastRestocked)}
-                  </td>
-                  <td className="px-4 py-3">
-                    {editingProductId === item.id ? (
-                      // Inline Edit Mode
-                      <div className="flex items-center gap-2">
-                        <select
-                          value={editValues.operation}
-                          onChange={(e) => setEditValues({...editValues, operation: e.target.value})}
-                          className="text-xs border-gray-300 rounded px-2 py-1 focus:ring-blue-500 focus:border-blue-500"
-                        >
-                          <option value="add">Add (+)</option>
-                          <option value="subtract">Remove (-)</option>
-                        </select>
-                        <input
-                          type="number"
-                          min="1"
-                          value={editValues.quantity}
-                          onChange={(e) => setEditValues({...editValues, quantity: e.target.value})}
-                          placeholder="Qty"
-                          className="w-20 text-xs border-gray-300 rounded px-2 py-1 focus:ring-blue-500 focus:border-blue-500"
-                        />
-                        <button
-                          onClick={() => handleStockAdjustment(item)}
-                          disabled={!editValues.quantity}
-                          className="inline-flex items-center px-2 py-1 text-xs font-medium text-white bg-blue-600 rounded hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                          <CheckCircleIcon className="h-3.5 w-3.5 mr-1" />
-                          Save
-                        </button>
-                        <button
-                          onClick={() => {
-                            setEditingProductId(null);
-                            setEditValues({ quantity: '', operation: 'add' });
-                          }}
-                          className="inline-flex items-center px-2 py-1 text-xs font-medium text-gray-700 bg-gray-100 rounded hover:bg-gray-200"
-                        >
-                          Cancel
-                        </button>
+                    <td className="px-4 py-3 whitespace-nowrap">
+                      <div className="flex items-center">
+                        <TagIcon className="h-3.5 w-3.5 text-gray-400 mr-1.5" />
+                        <span className="text-xs text-gray-900">{item.category}</span>
                       </div>
-                    ) : (
-                      // View Mode
-                      <div className="flex justify-center gap-2">
-                        <button
-                          onClick={() => {
-                            setEditingProductId(item.id);
-                            setEditValues({ quantity: '', operation: 'add' });
-                          }}
-                          className="inline-flex items-center px-2.5 py-1.5 text-xs font-medium text-blue-700 bg-blue-50 border border-blue-200 rounded hover:bg-blue-100"
-                        >
-                          <svg className="h-3.5 w-3.5 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                          </svg>
-                          Update Stock
-                        </button>
+                    </td>
+                    <td className="px-4 py-3 whitespace-nowrap">
+                      <div className="text-xs font-medium text-gray-900">{item.currentStock}</div>
+                      <div className="text-xs text-gray-500">Min: {item.minThreshold} | Max: {item.maxCapacity}</div>
+                    </td>
+                    <td className="px-4 py-3 whitespace-nowrap">
+                      <div className="w-full bg-gray-200 rounded-full h-1.5">
+                        <div
+                          className={`h-1.5 rounded-full ${item.status === 'in_stock' ? 'bg-green-500' :
+                              item.status === 'low_stock' ? 'bg-yellow-500' : 'bg-red-500'
+                            }`}
+                          style={{ width: `${getStockPercentage(item.currentStock, item.maxCapacity)}%` }}
+                        ></div>
                       </div>
-                    )}
-                  </td>
-                </tr>
-              ))
+                      <div className="text-xs text-gray-500 mt-0.5">
+                        {getStockPercentage(item.currentStock, item.maxCapacity).toFixed(0)}% capacity
+                      </div>
+                    </td>
+                    <td className="px-4 py-3 whitespace-nowrap">
+                      <div className="flex items-center gap-1">
+                        {getStatusIcon(item.status)}
+                        {getStatusBadge(item.status)}
+                      </div>
+                    </td>
+                    <td className="px-4 py-3 whitespace-nowrap">
+                      <div className="text-xs font-medium text-gray-900">₹{item.totalValue.toLocaleString()}</div>
+                      <div className="text-xs text-gray-500">@₹{item.unitPrice} each</div>
+                    </td>
+                    <td className="px-4 py-3 whitespace-nowrap text-xs text-gray-900">
+                      {formatDate(item.lastRestocked)}
+                    </td>
+                    <td className="px-4 py-3">
+                      {editingProductId === item.id ? (
+                        // Inline Edit Mode
+                        <div className="flex items-center gap-2">
+                          <select
+                            value={editValues.operation}
+                            onChange={(e) => setEditValues({ ...editValues, operation: e.target.value })}
+                            className="text-xs border-gray-300 rounded px-2 py-1 focus:ring-blue-500 focus:border-blue-500"
+                          >
+                            <option value="add">Add (+)</option>
+                            <option value="subtract">Remove (-)</option>
+                          </select>
+                          <input
+                            type="number"
+                            min="1"
+                            value={editValues.quantity}
+                            onChange={(e) => setEditValues({ ...editValues, quantity: e.target.value })}
+                            placeholder="Qty"
+                            className="w-20 text-xs border-gray-300 rounded px-2 py-1 focus:ring-blue-500 focus:border-blue-500"
+                          />
+                          <button
+                            onClick={() => handleStockAdjustment(item)}
+                            disabled={!editValues.quantity}
+                            className="inline-flex items-center px-2 py-1 text-xs font-medium text-white bg-blue-600 rounded hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            <CheckCircleIcon className="h-3.5 w-3.5 mr-1" />
+                            Save
+                          </button>
+                          <button
+                            onClick={() => {
+                              setEditingProductId(null);
+                              setEditValues({ quantity: '', operation: 'add' });
+                            }}
+                            className="inline-flex items-center px-2 py-1 text-xs font-medium text-gray-700 bg-gray-100 rounded hover:bg-gray-200"
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      ) : (
+                        // View Mode
+                        <div className="flex justify-center gap-2">
+                          <button
+                            onClick={() => {
+                              setEditingProductId(item.id);
+                              setEditValues({ quantity: '', operation: 'add' });
+                            }}
+                            className="inline-flex items-center px-2.5 py-1.5 text-xs font-medium text-blue-700 bg-blue-50 border border-blue-200 rounded hover:bg-blue-100"
+                          >
+                            <svg className="h-3.5 w-3.5 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                            </svg>
+                            Update Stock
+                          </button>
+                        </div>
+                      )}
+                    </td>
+                  </tr>
+                ))
               )}
             </tbody>
           </table>
@@ -1028,7 +1021,7 @@ const InventoryManagement = () => {
                     <input
                       type="text"
                       value={newProduct.name}
-                      onChange={(e) => setNewProduct({...newProduct, name: e.target.value})}
+                      onChange={(e) => setNewProduct({ ...newProduct, name: e.target.value })}
                       placeholder="e.g., Fresh Organic Apples"
                       className="block w-full rounded-md border-0 bg-gray-50 px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:bg-white focus:ring-2 focus:ring-blue-500 focus:outline-none"
                     />
@@ -1041,7 +1034,7 @@ const InventoryManagement = () => {
                     </label>
                     <textarea
                       value={newProduct.description}
-                      onChange={(e) => setNewProduct({...newProduct, description: e.target.value})}
+                      onChange={(e) => setNewProduct({ ...newProduct, description: e.target.value })}
                       rows={3}
                       placeholder="Detailed product description..."
                       className="block w-full rounded-md border-0 bg-gray-50 px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:bg-white focus:ring-2 focus:ring-blue-500 focus:outline-none resize-none"
@@ -1071,7 +1064,7 @@ const InventoryManagement = () => {
                       </label>
                       <select
                         value={newProduct.subcategory}
-                        onChange={(e) => setNewProduct({...newProduct, subcategory: e.target.value})}
+                        onChange={(e) => setNewProduct({ ...newProduct, subcategory: e.target.value })}
                         disabled={!newProduct.category}
                         className="block w-full rounded-md border-0 bg-gray-50 px-3 py-2 text-sm text-gray-900 focus:bg-white focus:ring-2 focus:ring-blue-500 focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
                       >
@@ -1092,7 +1085,7 @@ const InventoryManagement = () => {
                       <input
                         type="text"
                         value={newProduct.brand}
-                        onChange={(e) => setNewProduct({...newProduct, brand: e.target.value})}
+                        onChange={(e) => setNewProduct({ ...newProduct, brand: e.target.value })}
                         placeholder="e.g., Organic Farms"
                         className="block w-full rounded-md border-0 bg-gray-50 px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:bg-white focus:ring-2 focus:ring-blue-500 focus:outline-none"
                       />
@@ -1104,7 +1097,7 @@ const InventoryManagement = () => {
                       <input
                         type="number"
                         value={newProduct.basePrice}
-                        onChange={(e) => setNewProduct({...newProduct, basePrice: e.target.value})}
+                        onChange={(e) => setNewProduct({ ...newProduct, basePrice: e.target.value })}
                         placeholder="0"
                         min="0"
                         className="block w-full rounded-md border-0 bg-gray-50 px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:bg-white focus:ring-2 focus:ring-blue-500 focus:outline-none"
@@ -1121,7 +1114,7 @@ const InventoryManagement = () => {
                       <input
                         type="number"
                         value={newProduct.weight}
-                        onChange={(e) => setNewProduct({...newProduct, weight: e.target.value})}
+                        onChange={(e) => setNewProduct({ ...newProduct, weight: e.target.value })}
                         placeholder="0"
                         min="0"
                         step="0.01"
@@ -1134,7 +1127,7 @@ const InventoryManagement = () => {
                       </label>
                       <select
                         value={newProduct.unit}
-                        onChange={(e) => setNewProduct({...newProduct, unit: e.target.value})}
+                        onChange={(e) => setNewProduct({ ...newProduct, unit: e.target.value })}
                         className="block w-full rounded-md border-0 bg-gray-50 px-3 py-2 text-sm text-gray-900 focus:bg-white focus:ring-2 focus:ring-blue-500 focus:outline-none"
                       >
                         <option value="kg">Kilogram (kg)</option>
@@ -1157,7 +1150,7 @@ const InventoryManagement = () => {
                       <input
                         type="number"
                         value={newProduct.initialStock}
-                        onChange={(e) => setNewProduct({...newProduct, initialStock: parseInt(e.target.value) || 0})}
+                        onChange={(e) => setNewProduct({ ...newProduct, initialStock: parseInt(e.target.value) || 0 })}
                         placeholder="0"
                         min="0"
                         className="block w-full rounded-md border-0 bg-gray-50 px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:bg-white focus:ring-2 focus:ring-blue-500 focus:outline-none"
@@ -1170,7 +1163,7 @@ const InventoryManagement = () => {
                       <input
                         type="number"
                         value={newProduct.lowStockThreshold}
-                        onChange={(e) => setNewProduct({...newProduct, lowStockThreshold: parseInt(e.target.value) || 10})}
+                        onChange={(e) => setNewProduct({ ...newProduct, lowStockThreshold: parseInt(e.target.value) || 10 })}
                         placeholder="10"
                         min="0"
                         className="block w-full rounded-md border-0 bg-gray-50 px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:bg-white focus:ring-2 focus:ring-blue-500 focus:outline-none"
@@ -1278,7 +1271,11 @@ const InventoryManagement = () => {
                   <button
                     type="button"
                     className="rounded-md bg-white text-gray-400 hover:text-gray-500"
-                    onClick={() => setShowBulkUpdateModal(false)}
+                    onClick={() => {
+                      setShowBulkUpdateModal(false);
+                      setIndividualQuantities({});
+                      setBulkQuantity('');
+                    }}
                   >
                     <XMarkIcon className="h-5 w-5" />
                   </button>
@@ -1299,33 +1296,30 @@ const InventoryManagement = () => {
                     <div className="grid grid-cols-3 gap-3">
                       <button
                         onClick={() => setBulkOperation('add')}
-                        className={`px-4 py-2 text-sm font-medium rounded-lg border ${
-                          bulkOperation === 'add'
+                        className={`px-4 py-2 text-sm font-medium rounded-lg border ${bulkOperation === 'add'
                             ? 'bg-green-50 border-green-500 text-green-700'
                             : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'
-                        }`}
+                          }`}
                       >
                         <PlusIcon className="h-4 w-4 mx-auto mb-1" />
                         Add Stock
                       </button>
                       <button
                         onClick={() => setBulkOperation('subtract')}
-                        className={`px-4 py-2 text-sm font-medium rounded-lg border ${
-                          bulkOperation === 'subtract'
+                        className={`px-4 py-2 text-sm font-medium rounded-lg border ${bulkOperation === 'subtract'
                             ? 'bg-red-50 border-red-500 text-red-700'
                             : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'
-                        }`}
+                          }`}
                       >
                         <MinusIcon className="h-4 w-4 mx-auto mb-1" />
                         Remove Stock
                       </button>
                       <button
                         onClick={() => setBulkOperation('set')}
-                        className={`px-4 py-2 text-sm font-medium rounded-lg border ${
-                          bulkOperation === 'set'
+                        className={`px-4 py-2 text-sm font-medium rounded-lg border ${bulkOperation === 'set'
                             ? 'bg-blue-50 border-blue-500 text-blue-700'
                             : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'
-                        }`}
+                          }`}
                       >
                         <AdjustmentsHorizontalIcon className="h-4 w-4 mx-auto mb-1" />
                         Set Stock
@@ -1333,31 +1327,95 @@ const InventoryManagement = () => {
                     </div>
                   </div>
 
-                  {/* Quantity Input */}
+                  {/* Apply to All Input */}
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Quantity
-                    </label>
+                    <div className="flex items-center justify-between mb-2">
+                      <label className="block text-sm font-medium text-gray-700">
+                        Apply Same Quantity to All
+                      </label>
+                      {bulkQuantity && (
+                        <button
+                          onClick={() => {
+                            const newQuantities = {};
+                            Array.from(selectedProducts).forEach(id => {
+                              newQuantities[id] = bulkQuantity;
+                            });
+                            setIndividualQuantities(newQuantities);
+                          }}
+                          className="text-xs text-blue-600 hover:text-blue-700 font-medium"
+                        >
+                          Apply to All
+                        </button>
+                      )}
+                    </div>
                     <input
                       type="number"
                       min="1"
                       value={bulkQuantity}
                       onChange={(e) => setBulkQuantity(e.target.value)}
-                      placeholder="Enter quantity"
+                      placeholder="Enter quantity for all"
                       className="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
                     />
-                    <p className="text-xs text-gray-500 mt-1">
-                      {bulkOperation === 'add' && 'This quantity will be added to each selected product'}
-                      {bulkOperation === 'subtract' && 'This quantity will be removed from each selected product'}
-                      {bulkOperation === 'set' && 'Stock will be set to this quantity for each selected product'}
-                    </p>
+                  </div>
+
+                  {/* Individual Product Quantities */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Individual Product Quantities
+                    </label>
+                    <div className="max-h-64 overflow-y-auto border border-gray-200 rounded-lg">
+                      {Array.from(selectedProducts).map((vendorProductId) => {
+                        const product = inventory.find(item => item.vendorProductId === vendorProductId);
+                        if (!product) return null;
+
+                        return (
+                          <div key={vendorProductId} className="flex items-center gap-3 p-3 border-b border-gray-100 last:border-b-0 hover:bg-gray-50">
+                            <div className="shrink-0">
+                              {product.image && (
+                                <img
+                                  src={product.image}
+                                  alt={product.name}
+                                  className="h-10 w-10 rounded object-cover"
+                                  onError={(e) => {
+                                    e.target.style.display = 'none';
+                                  }}
+                                />
+                              )}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-medium text-gray-900 truncate">{product.name}</p>
+                              <p className="text-xs text-gray-500">
+                                Current: {product.currentStock} | SKU: {product.sku}
+                              </p>
+                            </div>
+                            <div className="shrink-0">
+                              <input
+                                type="number"
+                                min="1"
+                                value={individualQuantities[vendorProductId] || ''}
+                                onChange={(e) => {
+                                  setIndividualQuantities({
+                                    ...individualQuantities,
+                                    [vendorProductId]: e.target.value
+                                  });
+                                }}
+                                placeholder="Qty"
+                                className="w-20 rounded border border-gray-300 px-2 py-1 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                              />
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
                   </div>
 
                   {/* Summary */}
                   <div className="bg-blue-50 rounded-lg p-3 border border-blue-200">
                     <p className="text-sm text-blue-900 font-medium">Summary</p>
                     <p className="text-xs text-blue-700 mt-1">
-                      {selectedProducts.size} product{selectedProducts.size !== 1 ? 's' : ''} will be updated
+                      {bulkOperation === 'add' && 'Stock will be added to each product'}
+                      {bulkOperation === 'subtract' && 'Stock will be removed from each product'}
+                      {bulkOperation === 'set' && 'Stock will be set to specified quantity for each product'}
                     </p>
                   </div>
                 </div>
@@ -1368,7 +1426,7 @@ const InventoryManagement = () => {
                 <button
                   type="button"
                   onClick={handleBulkUpdate}
-                  disabled={bulkUpdating || !bulkQuantity}
+                  disabled={bulkUpdating}
                   className="inline-flex w-full justify-center rounded-md bg-blue-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-500 sm:w-auto disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {bulkUpdating ? (
@@ -1382,13 +1440,17 @@ const InventoryManagement = () => {
                   ) : (
                     <>
                       <CheckCircleIcon className="h-4 w-4 mr-1" />
-                      Update Stock
+                      Update {selectedProducts.size} Product{selectedProducts.size !== 1 ? 's' : ''}
                     </>
                   )}
                 </button>
                 <button
                   type="button"
-                  onClick={() => setShowBulkUpdateModal(false)}
+                  onClick={() => {
+                    setShowBulkUpdateModal(false);
+                    setIndividualQuantities({});
+                    setBulkQuantity('');
+                  }}
                   disabled={bulkUpdating}
                   className="mt-3 inline-flex w-full justify-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50 sm:mt-0 sm:w-auto disabled:opacity-50"
                 >
