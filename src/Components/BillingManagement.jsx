@@ -1120,19 +1120,19 @@ const BillingManagement = () => {
 
             {/* Time Period Stats */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
-              <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg border border-blue-200 p-3">
+              <div className="bg-linear-to-br from-blue-50 to-blue-100 rounded-lg border border-blue-200 p-3">
                 <h3 className="text-xs font-medium text-blue-900 mb-2">This Week</h3>
                 <p className="text-xl font-bold text-blue-900">₹{analyticsData.timeBased.weekRevenue.toFixed(2)}</p>
                 <p className="text-[10px] text-blue-700 mt-0.5">{analyticsData.timeBased.weekBills} bills</p>
               </div>
 
-              <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-lg border border-green-200 p-3">
+              <div className="bg-linear-to-br from-green-50 to-green-100 rounded-lg border border-green-200 p-3">
                 <h3 className="text-xs font-medium text-green-900 mb-2">This Month</h3>
                 <p className="text-xl font-bold text-green-900">₹{analyticsData.timeBased.monthRevenue.toFixed(2)}</p>
                 <p className="text-[10px] text-green-700 mt-0.5">{analyticsData.timeBased.monthBills} bills</p>
               </div>
 
-              <div className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-lg border border-purple-200 p-3">
+              <div className="bg-linear-to-br from-purple-50 to-purple-100 rounded-lg border border-purple-200 p-3">
                 <h3 className="text-xs font-medium text-purple-900 mb-2">All Time</h3>
                 <p className="text-xl font-bold text-purple-900">₹{analyticsData.overview.totalRevenue.toFixed(2)}</p>
                 <p className="text-[10px] text-purple-700 mt-0.5">{analyticsData.overview.totalBills} bills</p>
