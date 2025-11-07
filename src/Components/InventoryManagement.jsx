@@ -535,7 +535,7 @@ const InventoryManagement = () => {
               className="inline-flex items-center rounded-lg bg-green-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-green-500"
             >
               <PlusIcon className="h-3.5 w-3.5 mr-1.5" />
-              Add Product
+              Add Store Products
             </button>
           )}
           <button className="inline-flex items-center rounded-lg bg-white border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50">
@@ -995,7 +995,7 @@ const InventoryManagement = () => {
               <div className="bg-white px-4 pt-4 pb-2 border-b border-gray-200">
                 <div className="flex items-center justify-between">
                   <h3 className="text-base font-semibold leading-6 text-gray-900">
-                    Add New Product
+                    Add New Product In Store
                   </h3>
                   <button
                     type="button"
