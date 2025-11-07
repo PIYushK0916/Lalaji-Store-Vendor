@@ -15,7 +15,7 @@ import {
 } from '@heroicons/react/24/outline';
 import { MapContainer, TileLayer, Marker, useMapEvents } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
-import '../components/MapStyles.css';
+import '../Components/MapStyles.css';
 import L from 'leaflet';
 import { auth } from '../utils/auth';
 
